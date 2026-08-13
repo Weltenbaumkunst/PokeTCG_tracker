@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokémon TCG Deck Aggregator & Scoreboard</title>
+    <style>
+        :root {
+            --bg-color: #f4f6f8;
+            --card-bg: #ffffff;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --secondary: #6b7280;
+            --secondary-hover: #4b5563;
+            --success: #16a34a;
+            --text-main: #1f2937;
+            --border-color: #e5e7eb;
+            --table-header-bg: #f8fafc;
+            
+            /* Kategorie-Farben */
+            --category-bg: #e2e8f0;
+            --pokemon-color: #d97706;
+            --trainer-color: #2563eb;
+            --energy-color: #16a34a;
+
+            /* Dimensionen */
+            --name-col-width: 250px;
+            --deck-col-width: 220px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 2rem;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            color: #111827;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .input-card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        textarea {
+            height: 140px;
+            font-family: monospace;
+            resize: vertical;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn-secondary { background-color: var(--secondary); }
+        .btn-secondary:hover { background-color: var(--secondary-hover); }
+        .btn-danger { background-color: var(--danger); }
+        .btn-danger:hover { background-color: var(--danger-hover); }
+
+        /* Container für Oberen Scrollbalken + Tabelle */
+        .table-wrapper {
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 0.5rem;
+        }
+
+        /* Oberer Scrollbalken */
+        .top-scrollbar-container {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            height: 16px;
+            margin-bottom: 0.25rem;
+        }
+
+        .top-scrollbar-dummy {
+            height: 1px;
+        }
+
+        /* Haupt-Tabelle Scroll-Container */
+        .table-container {
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        table {
+            border-collapse: collapse;
+            text-align: left;
+            table-layout: fixed; /* Erzwingt feste Spaltenbreiten */
+        }
+
+        th, td {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+        }
+
+        /* Erste Spalte (Kartenname) */
+        th:first-child, td:first-child {
+            width: var(--name-col-width);
+            min-width: var(--name-col-width);
+            max-width: var(--name-col-width);
+        }
+
+        /* Alle Deck-Spalten */
+        .deck-col {
+            width: var(--deck-col-width);
+            min-width: var(--deck-col-width);
+            max-width: var(--deck-col-width);
+        }
+
+        th {
+            background-color: var(--table-header-bg);
+            font-weight: 600;
+            font-size: 0.85rem;
+            vertical-align: top;
+        }
+
+        tr:hover { background-color: #f9fafb; }
+
+        /* Kategorie Trennzeilen */
+        .category-row {
+            background-color: var(--category-bg) !important;
+            font-weight: bold;
+            font-size: 0.9rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .category-pokemon { color: var(--pokemon-color); }
+        .category-trainer { color: var(--trainer-color); }
+        .category-energy { color: var(--energy-color); }
+
+        .count-cell {
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .zero-count {
+            color: #9ca3af;
+            font-weight: normal;
+        }
+
+        /* Scoreboard Styling */
+        .deck-header-title {
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: #111827;
+            margin-bottom: 0.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .score-box {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .score-controls {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.2rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .score-btn-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .score-label {
+            font-size: 0.68rem;
+            color: var(--secondary);
+            font-weight: bold;
+            margin-bottom: 0.1rem;
+        }
+
+        .btn-mini {
+            width: 22px;
+            height: 20px;
+            padding: 0;
+            font-size: 0.75rem;
+            line-height: 1;
+            border-radius: 3px;
+            border: none;
+            cursor: pointer;
+            color: white;
+            font-weight: bold;
+        }
+
+        .btn-win { background-color: var(--success); }
+        .btn-loss { background-color: var(--danger); }
+        .btn-draw { background-color: var(--secondary); }
+
+        .score-count {
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin: 0.15rem 0;
+        }
+
+        .winrate-display {
+            font-size: 0.78rem;
+            font-weight: bold;
+            padding-top: 0.2rem;
+            border-top: 1px dashed var(--border-color);
+            text-align: center;
+        }
+
+        .winrate-high { color: var(--success); }
+        .winrate-mid { color: #d97706; }
+        .winrate-low { color: var(--danger); }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #6b7280;
+        }
+
+        #fileInput { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-container">
+        <h1>Pokémon TCG Deck-Vergleicher & Scoreboard</h1>
+        <div class="action-buttons">
+            <button class="btn btn-secondary" onclick="exportData()">Data Exportieren</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">Data Importieren</button>
+            <input type="file" id="fileInput" accept=".json" onchange="importData(event)">
+            <button class="btn btn-danger" onclick="clearAllDecks()">Alle Decks löschen</button>
+        </div>
+    </div>
+
+    <div class="input-card">
+        <div class="form-group">
+            <label for="deckName">Deck Code-Name</label>
+            <input type="text" id="deckName" placeholder="z. B. Gardevoir ex - Regionals">
+        </div>
+        <div class="form-group">
+            <label for="deckText">Deckliste (aus Pokémon TCG Live exportiert)</label>
+            <textarea id="deckText" placeholder="Pokémon: 23&#10;4 Hoothoot SCR 114&#10;4 Noctowl SCR 115&#10;&#10;Trainer: 28&#10;3 Crispin SCR 133&#10;&#10;Energy: 9&#10;2 Water Energy MEE 3"></textarea>
+        </div>
+        <button class="btn" onclick="addDeck()">Deck Hinzufügen & Speichern</button>
+    </div>
+
+    <div class="table-wrapper">
+        <!-- Oberer Scrollbalken -->
+        <div class="top-scrollbar-container" id="topScrollContainer">
+            <div class="top-scrollbar-dummy" id="topScrollDummy"></div>
+        </div>
+
+        <!-- Haupt-Tabelle -->
+        <div class="table-container" id="tableContainer">
+            <table id="comparisonTable">
+                <thead>
+                    <tr id="tableHeader">
+                        <th>Kartenname</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr>
+                        <td class="empty-state">Noch keine Decks gespeichert. Füge oben eine Deckliste ein.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const STORAGE_KEY = 'pokemon_tcg_decks_v4';
+    let decks = [];
+
+    window.addEventListener('DOMContentLoaded', () => {
+        loadDecksFromStorage();
+        initScrollSync();
+        renderTable();
+    });
+
+    /**
+     * Synchronisiert das Scrollen des oberen virtuellen Balkens mit der Tabelle.
+     */
+    function initScrollSync() {
+        const topContainer = document.getElementById('topScrollContainer');
+        const tableContainer = document.getElementById('tableContainer');
+
+        let isSyncingTop = false;
+        let isSyncingTable = false;
+
+        topContainer.addEventListener('scroll', () => {
+            if (!isSyncingTop) {
+                isSyncingTable = true;
+                tableContainer.scrollLeft = topContainer.scrollLeft;
+            }
+            isSyncingTop = false;
+        });
+
+        tableContainer.addEventListener('scroll', () => {
+            if (!isSyncingTable) {
+                isSyncingTop = true;
+                topContainer.scrollLeft = tableContainer.scrollLeft;
+            }
+            isSyncingTable = false;
+        });
+    }
+
+    /**
+     * Passt die Breite des oberen Scroll-Dummys an die tatsächliche Tabellenbreite an.
+     */
+    function updateScrollWidths() {
+        const table = document.getElementById('comparisonTable');
+        const topDummy = document.getElementById('topScrollDummy');
+        topDummy.style.width = table.scrollWidth + 'px';
+    }
+
+    function loadDecksFromStorage() {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+            try {
+                decks = JSON.parse(stored);
+            } catch (e) {
+                console.error('Fehler beim Laden:', e);
+                decks = [];
+            }
+        }
+    }
+
+    function saveDecksToStorage() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(decks));
+    }
+
+    function parseDeckList(text) {
+        const cardData = {
+            'Pokémon': {},
+            'Trainer': {},
+            'Energy': {},
+            'Sonstige': {}
+        };
+
+        let currentCategory = 'Sonstige';
+        const lines = text.split('\n');
+
+        const categoryRegex = /^(Pokémon|Pokemon|Trainer|Energy|Energie):?/i;
+        const cardRegex = /^\s*(\d+)\s+(.+?)\s+([A-Z0-9]{3,4})\s+(\d+)\s*$/i;
+
+        lines.forEach(line => {
+            const trimmedLine = line.trim();
+            if (!trimmedLine) return;
+
+            const catMatch = trimmedLine.match(categoryRegex);
+            if (catMatch) {
+                const matchedCat = catMatch[1].toLowerCase();
+                if (matchedCat.includes('pok')) currentCategory = 'Pokémon';
+                else if (matchedCat.includes('train')) currentCategory = 'Trainer';
+                else if (matchedCat.includes('energ')) currentCategory = 'Energy';
+                return;
+            }
+
+            const match = trimmedLine.match(cardRegex);
+            if (match) {
+                const count = parseInt(match[1], 10);
+                const name = match[2].trim();
+                cardData[currentCategory][name] = (cardData[currentCategory][name] || 0) + count;
+            }
+        });
+
+        return cardData;
+    }
+
+    function addDeck() {
+        const nameInput = document.getElementById('deckName');
+        const textInput = document.getElementById('deckText');
+
+        const name = nameInput.value.trim() || `Deck ${decks.length + 1}`;
+        const rawText = textInput.value.trim();
+
+        if (!rawText) {
+            alert('Bitte füge eine Deckliste ein.');
+            return;
+        }
+
+        const parsedCards = parseDeckList(rawText);
+        const hasCards = Object.values(parsedCards).some(cat => Object.keys(cat).length > 0);
+
+        if (!hasCards) {
+            alert('Keine gültigen Kartenzeilen gefunden. Bitte überprüfe das Format.');
+            return;
+        }
+
+        // UNSHIFT statt PUSH: Neuestes Deck wird VORNE (links) angefügt
+        decks.unshift({
+            id: Date.now().toString(),
+            name: name,
+            cards: parsedCards,
+            stats: { wins: 0, losses: 0, draws: 0 }
+        });
+
+        saveDecksToStorage();
+        nameInput.value = '';
+        textInput.value = '';
+        renderTable();
+    }
+
+    function updateScore(deckId, type, delta) {
+        const deck = decks.find(d => d.id === deckId);
+        if (deck) {
+            deck.stats[type] = Math.max(0, deck.stats[type] + delta);
+            saveDecksToStorage();
+            renderTable();
+        }
+    }
+
+    function removeDeck(deckId) {
+        decks = decks.filter(deck => deck.id !== deckId);
+        saveDecksToStorage();
+        renderTable();
+    }
+
+    function clearAllDecks() {
+        if (decks.length === 0) return;
+        if (confirm('Möchtest du wirklich alle gespeicherten Decks und Statistiken löschen?')) {
+            decks = [];
+            localStorage.removeItem(STORAGE_KEY);
+            renderTable();
+        }
+    }
+
+    function exportData() {
+        if (decks.length === 0) {
+            alert('Keine Daten zum Exportieren vorhanden.');
+            return;
+        }
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(decks, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `ptcg_decks_backup_${new Date().toISOString().slice(0,10)}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+    }
+
+    function importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedDecks = JSON.parse(e.target.result);
+                if (Array.isArray(importedDecks)) {
+                    decks = importedDecks;
+                    saveDecksToStorage();
+                    renderTable();
+                    alert('Daten erfolgreich importiert!');
+                } else {
+                    alert('Ungültiges Dateiformat.');
+                }
+            } catch (err) {
+                alert('Fehler beim Lesen der JSON-Datei.');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function renderTable() {
+        const headerRow = document.getElementById('tableHeader');
+        const tableBody = document.getElementById('tableBody');
+
+        headerRow.innerHTML = '<th>Kartenname</th>';
+        tableBody.innerHTML = '';
+
+        if (decks.length === 0) {
+            tableBody.innerHTML = '<tr><td class="empty-state">Noch keine Decks gespeichert. Füge oben eine Deckliste ein.</td></tr>';
+            updateScrollWidths();
+            return;
+        }
+
+        // 1. Header mit Scoreboard pro Deck rendern
+        decks.forEach(deck => {
+            const totalGames = deck.stats.wins + deck.stats.losses + deck.stats.draws;
+            const winrate = totalGames > 0 ? Math.round((deck.stats.wins / totalGames) * 100) : 0;
+            
+            let winrateClass = 'winrate-mid';
+            if (winrate >= 55) winrateClass = 'winrate-high';
+            else if (winrate < 45 && totalGames > 0) winrateClass = 'winrate-low';
+
+            const th = document.createElement('th');
+            th.className = 'count-cell deck-col';
+            th.innerHTML = `
+                <div class="deck-header-title" title="${escapeHtml(deck.name)}">${escapeHtml(deck.name)}</div>
+                <div class="score-box">
+                    <div class="score-controls">
+                        <div class="score-btn-group">
+                            <span class="score-label">WIN</span>
+                            <button class="btn-mini btn-win" onclick="updateScore('${deck.id}', 'wins', 1)">+</button>
+                            <span class="score-count">${deck.stats.wins}</span>
+                            <button class="btn-mini btn-secondary" onclick="updateScore('${deck.id}', 'wins', -1)">-</button>
+                        </div>
+                        <div class="score-btn-group">
+                            <span class="score-label">LOSS</span>
+                            <button class="btn-mini btn-loss" onclick="updateScore('${deck.id}', 'losses', 1)">+</button>
+                            <span class="score-count">${deck.stats.losses}</span>
+                            <button class="btn-mini btn-secondary" onclick="updateScore('${deck.id}', 'losses', -1)">-</button>
+                        </div>
+                        <div class="score-btn-group">
+                            <span class="score-label">DRAW</span>
+                            <button class="btn-mini btn-draw" onclick="updateScore('${deck.id}', 'draws', 1)">+</button>
+                            <span class="score-count">${deck.stats.draws}</span>
+                            <button class="btn-mini btn-secondary" onclick="updateScore('${deck.id}', 'draws', -1)">-</button>
+                        </div>
+                    </div>
+                    <div class="winrate-display ${winrateClass}">
+                        ${winrate}% (${totalGames} Sp.)
+                    </div>
+                </div>
+                <button class="btn btn-danger" onclick="removeDeck('${deck.id}')" title="Deck entfernen" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; width: 100%;">Löschen</button>
+            `;
+            headerRow.appendChild(th);
+        });
+
+        // 2. Karten nach Kategorien gruppieren
+        const categories = ['Pokémon', 'Trainer', 'Energy', 'Sonstige'];
+
+        categories.forEach(category => {
+            const uniqueCardsInCat = new Set();
+            decks.forEach(deck => {
+                if (deck.cards[category]) {
+                    Object.keys(deck.cards[category]).forEach(cardName => uniqueCardsInCat.add(cardName));
+                }
+            });
+
+            if (uniqueCardsInCat.size > 0) {
+                const catRow = document.createElement('tr');
+                catRow.className = 'category-row';
+                
+                let catClass = '';
+                if (category === 'Pokémon') catClass = 'category-pokemon';
+                else if (category === 'Trainer') catClass = 'category-trainer';
+                else if (category === 'Energy') catClass = 'category-energy';
+
+                const catCell = document.createElement('td');
+                catCell.colSpan = decks.length + 1;
+                catCell.className = catClass;
+                catCell.textContent = category;
+                catRow.appendChild(catCell);
+                tableBody.appendChild(catRow);
+
+                const sortedCards = Array.from(uniqueCardsInCat).sort();
+                sortedCards.forEach(cardName => {
+                    const tr = document.createElement('tr');
+                    const nameTd = document.createElement('td');
+                    nameTd.textContent = cardName;
+                    tr.appendChild(nameTd);
+
+                    decks.forEach(deck => {
+                        const td = document.createElement('td');
+                        td.className = 'count-cell deck-col';
+                        const count = (deck.cards[category] && deck.cards[category][cardName]) ? deck.cards[category][cardName] : 0;
+
+                        if (count > 0) {
+                            td.textContent = count;
+                        } else {
+                            td.textContent = '-';
+                            td.classList.add('zero-count');
+                        }
+
+                        tr.appendChild(td);
+                    });
+
+                    tableBody.appendChild(tr);
+                });
+            }
+        });
+
+        // Scrollleiste aktualisieren
+        updateScrollWidths();
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
+
+</body>
+</html>
