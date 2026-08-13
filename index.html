@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pokémon TCG Deck Aggregator & Scoreboard</title>
+    <title>Pokémon TCG Deck Aggregator & Cloud Tracker</title>
+    <!-- Supabase JS Client per CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --bg-color: #f4f6f8;
@@ -19,13 +21,11 @@
             --border-color: #e5e7eb;
             --table-header-bg: #f8fafc;
             
-            /* Kategorie-Farben */
             --category-bg: #e2e8f0;
             --pokemon-color: #d97706;
             --trainer-color: #2563eb;
             --energy-color: #16a34a;
 
-            /* Dimensionen */
             --name-col-width: 250px;
             --deck-col-width: 220px;
         }
@@ -49,6 +49,42 @@
             margin: 0 auto;
         }
 
+        /* Auth Screen Styling */
+        .auth-container {
+            max-width: 400px;
+            margin: 5rem auto;
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .auth-container h2 {
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .auth-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 0.5rem;
+            text-align: center;
+            background: #e5e7eb;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .auth-tab.active {
+            background: var(--primary);
+            color: white;
+        }
+
         .header-container {
             display: flex;
             justify-content: space-between;
@@ -58,14 +94,12 @@
             gap: 1rem;
         }
 
-        h1 {
-            font-size: 1.8rem;
-            color: #111827;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 0.5rem;
+        .user-badge {
+            font-size: 0.85rem;
+            background: #e2e8f0;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            font-weight: 600;
         }
 
         .input-card {
@@ -87,7 +121,7 @@
             font-size: 0.9rem;
         }
 
-        input[type="text"], textarea {
+        input[type="text"], input[type="email"], input[type="password"], textarea {
             width: 100%;
             padding: 0.75rem;
             border: 1px solid var(--border-color);
@@ -95,14 +129,8 @@
             font-size: 0.95rem;
         }
 
-        input[type="text"]:focus, textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-        }
-
         textarea {
-            height: 140px;
+            height: 120px;
             font-family: monospace;
             resize: vertical;
         }
@@ -121,11 +149,8 @@
 
         .btn:hover { background-color: var(--primary-hover); }
         .btn-secondary { background-color: var(--secondary); }
-        .btn-secondary:hover { background-color: var(--secondary-hover); }
         .btn-danger { background-color: var(--danger); }
-        .btn-danger:hover { background-color: var(--danger-hover); }
 
-        /* Container für Oberen Scrollbalken + Tabelle */
         .table-wrapper {
             background: var(--card-bg);
             border-radius: 8px;
@@ -133,7 +158,6 @@
             padding: 0.5rem;
         }
 
-        /* Oberer Scrollbalken */
         .top-scrollbar-container {
             width: 100%;
             overflow-x: auto;
@@ -142,11 +166,8 @@
             margin-bottom: 0.25rem;
         }
 
-        .top-scrollbar-dummy {
-            height: 1px;
-        }
+        .top-scrollbar-dummy { height: 1px; }
 
-        /* Haupt-Tabelle Scroll-Container */
         .table-container {
             overflow-x: auto;
             width: 100%;
@@ -155,7 +176,7 @@
         table {
             border-collapse: collapse;
             text-align: left;
-            table-layout: fixed; /* Erzwingt feste Spaltenbreiten */
+            table-layout: fixed;
         }
 
         th, td {
@@ -164,18 +185,14 @@
             border-right: 1px solid var(--border-color);
         }
 
-        /* Erste Spalte (Kartenname) */
         th:first-child, td:first-child {
             width: var(--name-col-width);
             min-width: var(--name-col-width);
-            max-width: var(--name-col-width);
         }
 
-        /* Alle Deck-Spalten */
         .deck-col {
             width: var(--deck-col-width);
             min-width: var(--deck-col-width);
-            max-width: var(--deck-col-width);
         }
 
         th {
@@ -185,14 +202,10 @@
             vertical-align: top;
         }
 
-        tr:hover { background-color: #f9fafb; }
-
-        /* Kategorie Trennzeilen */
         .category-row {
             background-color: var(--category-bg) !important;
             font-weight: bold;
             font-size: 0.9rem;
-            letter-spacing: 0.05em;
             text-transform: uppercase;
         }
 
@@ -200,21 +213,12 @@
         .category-trainer { color: var(--trainer-color); }
         .category-energy { color: var(--energy-color); }
 
-        .count-cell {
-            text-align: center;
-            font-weight: 600;
-        }
+        .count-cell { text-align: center; font-weight: 600; }
+        .zero-count { color: #9ca3af; font-weight: normal; }
 
-        .zero-count {
-            color: #9ca3af;
-            font-weight: normal;
-        }
-
-        /* Scoreboard Styling */
         .deck-header-title {
             font-size: 0.95rem;
             font-weight: bold;
-            color: #111827;
             margin-bottom: 0.5rem;
             white-space: nowrap;
             overflow: hidden;
@@ -232,8 +236,6 @@
         .score-controls {
             display: flex;
             justify-content: space-between;
-            gap: 0.2rem;
-            margin-bottom: 0.4rem;
         }
 
         .score-btn-group {
@@ -242,19 +244,11 @@
             align-items: center;
         }
 
-        .score-label {
-            font-size: 0.68rem;
-            color: var(--secondary);
-            font-weight: bold;
-            margin-bottom: 0.1rem;
-        }
+        .score-label { font-size: 0.68rem; color: var(--secondary); font-weight: bold; }
 
         .btn-mini {
             width: 22px;
             height: 20px;
-            padding: 0;
-            font-size: 0.75rem;
-            line-height: 1;
             border-radius: 3px;
             border: none;
             cursor: pointer;
@@ -266,152 +260,261 @@
         .btn-loss { background-color: var(--danger); }
         .btn-draw { background-color: var(--secondary); }
 
-        .score-count {
-            font-size: 0.85rem;
-            font-weight: bold;
-            margin: 0.15rem 0;
-        }
-
         .winrate-display {
             font-size: 0.78rem;
             font-weight: bold;
+            text-align: center;
+            margin-top: 0.3rem;
             padding-top: 0.2rem;
             border-top: 1px dashed var(--border-color);
-            text-align: center;
         }
 
         .winrate-high { color: var(--success); }
         .winrate-mid { color: #d97706; }
         .winrate-low { color: var(--danger); }
 
-        .empty-state {
-            text-align: center;
-            padding: 3rem;
-            color: #6b7280;
-        }
-
-        #fileInput { display: none; }
+        .empty-state { text-align: center; padding: 3rem; color: #6b7280; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="header-container">
-        <h1>Pokémon TCG Deck-Vergleicher & Scoreboard</h1>
-        <div class="action-buttons">
-            <button class="btn btn-secondary" onclick="exportData()">Data Exportieren</button>
-            <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">Data Importieren</button>
-            <input type="file" id="fileInput" accept=".json" onchange="importData(event)">
-            <button class="btn btn-danger" onclick="clearAllDecks()">Alle Decks löschen</button>
-        </div>
-    </div>
-
-    <div class="input-card">
-        <div class="form-group">
-            <label for="deckName">Deck Code-Name</label>
-            <input type="text" id="deckName" placeholder="z. B. Gardevoir ex - Regionals">
+    <!-- AUTH SCREEN -->
+    <div id="authScreen" class="auth-container">
+        <h2>Pokémon Deck Tracker Cloud</h2>
+        <div class="auth-tabs">
+            <div id="tabLogin" class="auth-tab active" onclick="switchAuthTab('login')">Login</div>
+            <div id="tabRegister" class="auth-tab" onclick="switchAuthTab('register')">Registrieren</div>
         </div>
         <div class="form-group">
-            <label for="deckText">Deckliste (aus Pokémon TCG Live exportiert)</label>
-            <textarea id="deckText" placeholder="Pokémon: 23&#10;4 Hoothoot SCR 114&#10;4 Noctowl SCR 115&#10;&#10;Trainer: 28&#10;3 Crispin SCR 133&#10;&#10;Energy: 9&#10;2 Water Energy MEE 3"></textarea>
+            <label>E-Mail</label>
+            <input type="email" id="authEmail" placeholder="deine@email.de">
         </div>
-        <button class="btn" onclick="addDeck()">Deck Hinzufügen & Speichern</button>
+        <div class="form-group">
+            <label>Passwort</label>
+            <input type="password" id="authPassword" placeholder="••••••••">
+        </div>
+        <button id="authBtn" class="btn" style="width: 100%;" onclick="handleAuth()">Einloggen</button>
     </div>
 
-    <div class="table-wrapper">
-        <!-- Oberer Scrollbalken -->
-        <div class="top-scrollbar-container" id="topScrollContainer">
-            <div class="top-scrollbar-dummy" id="topScrollDummy"></div>
+    <!-- MAIN APP SCREEN -->
+    <div id="appScreen" class="hidden">
+        <div class="header-container">
+            <h1>Pokémon TCG Cloud Deck Tracker</h1>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <span id="userEmailBadge" class="user-badge"></span>
+                <button class="btn btn-secondary" onclick="logout()">Ausloggen</button>
+            </div>
         </div>
 
-        <!-- Haupt-Tabelle -->
-        <div class="table-container" id="tableContainer">
-            <table id="comparisonTable">
-                <thead>
-                    <tr id="tableHeader">
-                        <th>Kartenname</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                    <tr>
-                        <td class="empty-state">Noch keine Decks gespeichert. Füge oben eine Deckliste ein.</td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="input-card">
+            <div class="form-group">
+                <label for="deckName">Deck Code-Name</label>
+                <input type="text" id="deckName" placeholder="z. B. Gardevoir ex - Regionals">
+            </div>
+            <div class="form-group">
+                <label for="deckText">Deckliste (aus Pokémon TCG Live)</label>
+                <textarea id="deckText" placeholder="Pokémon: 23&#10;4 Hoothoot SCR 114&#10;..."></textarea>
+            </div>
+            <button class="btn" onclick="addDeck()">Deck in Cloud Speichern</button>
+        </div>
+
+        <div class="table-wrapper">
+            <div class="top-scrollbar-container" id="topScrollContainer">
+                <div class="top-scrollbar-dummy" id="topScrollDummy"></div>
+            </div>
+
+            <div class="table-container" id="tableContainer">
+                <table id="comparisonTable">
+                    <thead>
+                        <tr id="tableHeader">
+                            <th>Kartenname</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td class="empty-state">Lade Daten aus der Cloud...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    const STORAGE_KEY = 'pokemon_tcg_decks_v4';
-    let decks = [];
+    // --- SUPABASE CONFIGURATION ---
+    // Ersetze diese beiden Strings mit deinen Daten aus dem Supabase Dashboard (Settings -> API)
+    const SUPABASE_URL = 'https://uztaqhpijrzvevoczsak.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6dGFxaHBpanJ6dmV2b2N6c2FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1OTYyNTYsImV4cCI6MjEwMjE3MjI1Nn0.demtWO-USuk7XknBM0W11c2VK75_vxvOQzLTF7PnBs4';
 
-    window.addEventListener('DOMContentLoaded', () => {
-        loadDecksFromStorage();
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let decks = [];
+    let isRegisterMode = false;
+
+    // --- AUTHENTIFIZIERUNG ---
+    window.addEventListener('DOMContentLoaded', async () => {
         initScrollSync();
-        renderTable();
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+            showApp(session.user);
+        }
+
+        supabase.auth.onAuthStateChange((_event, session) => {
+            if (session) {
+                showApp(session.user);
+            } else {
+                showAuth();
+            }
+        });
     });
 
-    /**
-     * Synchronisiert das Scrollen des oberen virtuellen Balkens mit der Tabelle.
-     */
-    function initScrollSync() {
-        const topContainer = document.getElementById('topScrollContainer');
-        const tableContainer = document.getElementById('tableContainer');
-
-        let isSyncingTop = false;
-        let isSyncingTable = false;
-
-        topContainer.addEventListener('scroll', () => {
-            if (!isSyncingTop) {
-                isSyncingTable = true;
-                tableContainer.scrollLeft = topContainer.scrollLeft;
-            }
-            isSyncingTop = false;
-        });
-
-        tableContainer.addEventListener('scroll', () => {
-            if (!isSyncingTable) {
-                isSyncingTop = true;
-                topContainer.scrollLeft = tableContainer.scrollLeft;
-            }
-            isSyncingTable = false;
-        });
+    function switchAuthTab(mode) {
+        isRegisterMode = (mode === 'register');
+        document.getElementById('tabLogin').classList.toggle('active', !isRegisterMode);
+        document.getElementById('tabRegister').classList.toggle('active', isRegisterMode);
+        document.getElementById('authBtn').textContent = isRegisterMode ? 'Konto Erstellen' : 'Einloggen';
     }
 
-    /**
-     * Passt die Breite des oberen Scroll-Dummys an die tatsächliche Tabellenbreite an.
-     */
-    function updateScrollWidths() {
-        const table = document.getElementById('comparisonTable');
-        const topDummy = document.getElementById('topScrollDummy');
-        topDummy.style.width = table.scrollWidth + 'px';
-    }
+    async function handleAuth() {
+        const email = document.getElementById('authEmail').value.trim();
+        const password = document.getElementById('authPassword').value.trim();
 
-    function loadDecksFromStorage() {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try {
-                decks = JSON.parse(stored);
-            } catch (e) {
-                console.error('Fehler beim Laden:', e);
-                decks = [];
-            }
+        if (!email || !password) {
+            alert('Bitte E-Mail und Passwort eingeben.');
+            return;
+        }
+
+        if (isRegisterMode) {
+            const { error } = await supabase.auth.signUp({ email, password });
+            if (error) alert('Registrierung fehlgeschlagen: ' + error.message);
+            else alert('Registrierung erfolgreich! Du kannst dich jetzt einloggen.');
+        } else {
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) alert('Login fehlgeschlagen: ' + error.message);
         }
     }
 
-    function saveDecksToStorage() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(decks));
+    async function logout() {
+        await supabase.auth.signOut();
     }
 
-    function parseDeckList(text) {
-        const cardData = {
-            'Pokémon': {},
-            'Trainer': {},
-            'Energy': {},
-            'Sonstige': {}
+    function showApp(user) {
+        document.getElementById('authScreen').classList.add('hidden');
+        document.getElementById('appScreen').classList.remove('hidden');
+        document.getElementById('userEmailBadge').textContent = user.email;
+        loadDecksFromCloud();
+    }
+
+    function showAuth() {
+        document.getElementById('authScreen').classList.remove('hidden');
+        document.getElementById('appScreen').classList.add('hidden');
+        decks = [];
+    }
+
+    // --- DATENBANK OPERATIONEN ---
+    async function loadDecksFromCloud() {
+        const { data, error } = await supabase
+            .from('decks')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Fehler beim Laden:', error);
+            alert('Fehler beim Laden der Decks.');
+            return;
+        }
+
+        decks = data;
+        renderTable();
+    }
+
+    async function addDeck() {
+        const nameInput = document.getElementById('deckName');
+        const textInput = document.getElementById('deckText');
+
+        const name = nameInput.value.trim() || `Deck ${decks.length + 1}`;
+        const rawText = textInput.value.trim();
+
+        if (!rawText) {
+            alert('Bitte füge eine Deckliste ein.');
+            return;
+        }
+
+        const parsedCards = parseDeckList(rawText);
+        const hasCards = Object.values(parsedCards).some(cat => Object.keys(cat).length > 0);
+
+        if (!hasCards) {
+            alert('Keine gültigen Kartenzeilen gefunden.');
+            return;
+        }
+
+        const newDeck = {
+            name: name,
+            cards: parsedCards,
+            stats: { wins: 0, losses: 0, draws: 0 }
         };
 
+        const { data, error } = await supabase
+            .from('decks')
+            .insert([newDeck])
+            .select();
+
+        if (error) {
+            alert('Fehler beim Speichern: ' + error.message);
+            return;
+        }
+
+        decks.unshift(data[0]);
+        nameInput.value = '';
+        textInput.value = '';
+        renderTable();
+    }
+
+    async function updateScore(deckId, type, delta) {
+        const deck = decks.find(d => d.id === deckId);
+        if (!deck) return;
+
+        const updatedStats = { ...deck.stats };
+        updatedStats[type] = Math.max(0, updatedStats[type] + delta);
+
+        const { error } = await supabase
+            .from('decks')
+            .update({ stats: updatedStats })
+            .eq('id', deckId);
+
+        if (error) {
+            console.error('Update Fehler:', error);
+            return;
+        }
+
+        deck.stats = updatedStats;
+        renderTable();
+    }
+
+    async function removeDeck(deckId) {
+        if (!confirm('Deck wirklich aus der Cloud löschen?')) return;
+
+        const { error } = await supabase
+            .from('decks')
+            .delete()
+            .eq('id', deckId);
+
+        if (error) {
+            alert('Löschen fehlgeschlagen.');
+            return;
+        }
+
+        decks = decks.filter(d => d.id !== deckId);
+        renderTable();
+    }
+
+    // --- HELPER & PARSER ---
+    function parseDeckList(text) {
+        const cardData = { 'Pokémon': {}, 'Trainer': {}, 'Energy': {}, 'Sonstige': {} };
         let currentCategory = 'Sonstige';
         const lines = text.split('\n');
 
@@ -442,99 +545,24 @@
         return cardData;
     }
 
-    function addDeck() {
-        const nameInput = document.getElementById('deckName');
-        const textInput = document.getElementById('deckText');
+    function initScrollSync() {
+        const topContainer = document.getElementById('topScrollContainer');
+        const tableContainer = document.getElementById('tableContainer');
+        let isSyncingTop = false, isSyncingTable = false;
 
-        const name = nameInput.value.trim() || `Deck ${decks.length + 1}`;
-        const rawText = textInput.value.trim();
-
-        if (!rawText) {
-            alert('Bitte füge eine Deckliste ein.');
-            return;
-        }
-
-        const parsedCards = parseDeckList(rawText);
-        const hasCards = Object.values(parsedCards).some(cat => Object.keys(cat).length > 0);
-
-        if (!hasCards) {
-            alert('Keine gültigen Kartenzeilen gefunden. Bitte überprüfe das Format.');
-            return;
-        }
-
-        // UNSHIFT statt PUSH: Neuestes Deck wird VORNE (links) angefügt
-        decks.unshift({
-            id: Date.now().toString(),
-            name: name,
-            cards: parsedCards,
-            stats: { wins: 0, losses: 0, draws: 0 }
+        topContainer.addEventListener('scroll', () => {
+            if (!isSyncingTop) { isSyncingTable = true; tableContainer.scrollLeft = topContainer.scrollLeft; }
+            isSyncingTop = false;
         });
 
-        saveDecksToStorage();
-        nameInput.value = '';
-        textInput.value = '';
-        renderTable();
+        tableContainer.addEventListener('scroll', () => {
+            if (!isSyncingTable) { isSyncingTop = true; topContainer.scrollLeft = tableContainer.scrollLeft; }
+            isSyncingTable = false;
+        });
     }
 
-    function updateScore(deckId, type, delta) {
-        const deck = decks.find(d => d.id === deckId);
-        if (deck) {
-            deck.stats[type] = Math.max(0, deck.stats[type] + delta);
-            saveDecksToStorage();
-            renderTable();
-        }
-    }
-
-    function removeDeck(deckId) {
-        decks = decks.filter(deck => deck.id !== deckId);
-        saveDecksToStorage();
-        renderTable();
-    }
-
-    function clearAllDecks() {
-        if (decks.length === 0) return;
-        if (confirm('Möchtest du wirklich alle gespeicherten Decks und Statistiken löschen?')) {
-            decks = [];
-            localStorage.removeItem(STORAGE_KEY);
-            renderTable();
-        }
-    }
-
-    function exportData() {
-        if (decks.length === 0) {
-            alert('Keine Daten zum Exportieren vorhanden.');
-            return;
-        }
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(decks, null, 2));
-        const downloadAnchor = document.createElement('a');
-        downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", `ptcg_decks_backup_${new Date().toISOString().slice(0,10)}.json`);
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
-    }
-
-    function importData(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const importedDecks = JSON.parse(e.target.result);
-                if (Array.isArray(importedDecks)) {
-                    decks = importedDecks;
-                    saveDecksToStorage();
-                    renderTable();
-                    alert('Daten erfolgreich importiert!');
-                } else {
-                    alert('Ungültiges Dateiformat.');
-                }
-            } catch (err) {
-                alert('Fehler beim Lesen der JSON-Datei.');
-            }
-        };
-        reader.readAsText(file);
+    function updateScrollWidths() {
+        document.getElementById('topScrollDummy').style.width = document.getElementById('comparisonTable').scrollWidth + 'px';
     }
 
     function renderTable() {
@@ -545,12 +573,11 @@
         tableBody.innerHTML = '';
 
         if (decks.length === 0) {
-            tableBody.innerHTML = '<tr><td class="empty-state">Noch keine Decks gespeichert. Füge oben eine Deckliste ein.</td></tr>';
+            tableBody.innerHTML = '<tr><td class="empty-state">Noch keine Decks in der Cloud gespeichert.</td></tr>';
             updateScrollWidths();
             return;
         }
 
-        // 1. Header mit Scoreboard pro Deck rendern
         decks.forEach(deck => {
             const totalGames = deck.stats.wins + deck.stats.losses + deck.stats.draws;
             const winrate = totalGames > 0 ? Math.round((deck.stats.wins / totalGames) * 100) : 0;
@@ -593,7 +620,6 @@
             headerRow.appendChild(th);
         });
 
-        // 2. Karten nach Kategorien gruppieren
         const categories = ['Pokémon', 'Trainer', 'Energy', 'Sonstige'];
 
         categories.forEach(category => {
@@ -647,7 +673,6 @@
             }
         });
 
-        // Scrollleiste aktualisieren
         updateScrollWidths();
     }
 
