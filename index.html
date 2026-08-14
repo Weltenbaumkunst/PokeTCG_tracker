@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pokémon TCG Deck Aggregator & Cloud Tracker</title>
     <!-- Supabase JS Client per CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --bg-color: #f4f6f8;
@@ -363,16 +363,36 @@
     let decks = [];
     let isRegisterMode = false;
 
-    // --- AUTHENTIFIZIERUNG ---
+   let supabase;
+    try {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch (err) {
+        console.error('Supabase Client konnte nicht initialisiert werden:', err);
+    }
+
+    let decks = [];
+    let isRegisterMode = false;
+
     window.addEventListener('DOMContentLoaded', async () => {
         initScrollSync();
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session) {
-            showApp(session.user);
+
+        if (!supabase) {
+            alert('Supabase-Verbindung konnte nicht aufgebaut werden. Bitte überprüfe die URL und den Key.');
+            return;
         }
 
-        supabase.auth.onAuthStateChange((_event, session) => {
+        try {
+            const { data: { session }, error } = await supabase.auth.getSession();
+            if (error) throw error;
+            
+            if (session) {
+                showApp(session.user);
+            }
+        } catch (e) {
+            console.error('Session-Check Fehler:', e);
+        }
+
+        supabase.auth.onAuthStateChange((event, session) => {
             if (session) {
                 showApp(session.user);
             } else {
@@ -383,32 +403,21 @@
 
     function switchAuthTab(mode) {
         isRegisterMode = (mode === 'register');
-        
-        // Tab-Styling umschalten
         document.getElementById('tabLogin').classList.toggle('active', !isRegisterMode);
         document.getElementById('tabRegister').classList.toggle('active', isRegisterMode);
         
-        // Button-Text und -Farbe anpassen
         const authBtn = document.getElementById('authBtn');
-        if (isRegisterMode) {
-            authBtn.textContent = 'Jetzt Registrieren';
-            authBtn.style.backgroundColor = 'var(--success)';
-        } else {
-            authBtn.textContent = 'Einloggen';
-            authBtn.style.backgroundColor = 'var(--primary)';
-        }
+        authBtn.textContent = isRegisterMode ? 'Jetzt Registrieren' : 'Einloggen';
+        authBtn.style.backgroundColor = isRegisterMode ? 'var(--success)' : 'var(--primary)';
     }
 
     async function handleAuth() {
-        const emailInput = document.getElementById('authEmail');
-        const passwordInput = document.getElementById('authPassword');
+        const email = document.getElementById('authEmail').value.trim();
+        const password = document.getElementById('authPassword').value.trim();
         const authBtn = document.getElementById('authBtn');
 
-        const email = emailInput.value.trim();
-        const password = passwordInput.value.trim();
-
         if (!email || !password) {
-            alert('Bitte gib E-Mail und Passwort ein.');
+            alert('Bitte E-Mail und Passwort eingeben.');
             return;
         }
 
@@ -417,33 +426,39 @@
             return;
         }
 
-        // Ladezustand aktivieren
         authBtn.disabled = true;
-        authBtn.style.opacity = '0.7';
+        authBtn.textContent = 'Verarbeite...';
 
         try {
             if (isRegisterMode) {
-                const { data, error } = await supabase.auth.signUp({ email, password });
+                const { data, error } = await supabase.auth.signUp({ 
+                    email: email, 
+                    password: password 
+                });
+
                 if (error) {
                     alert('Registrierung fehlgeschlagen: ' + error.message);
                 } else if (data.user && !data.session) {
-                    alert('Konto erstellt! Wenn "Confirm email" in Supabase aktiv ist, prüfe deine Mails. Sonst kannst du dich jetzt einloggen.');
-                    switchAuthTab('login');
+                    alert('Registrierung erfolgreich! Bitte bestätige deine E-Mail (oder schalte "Confirm email" in Supabase unter Auth -> Providers -> Email ab).');
                 } else {
-                    alert('Registrierung erfolgreich! Du bist jetzt eingeloggt.');
+                    alert('Erfolgreich registriert und eingeloggt!');
                 }
             } else {
-                const { error } = await supabase.auth.signInWithPassword({ email, password });
+                const { data, error } = await supabase.auth.signInWithPassword({ 
+                    email: email, 
+                    password: password 
+                });
+
                 if (error) {
                     alert('Login fehlgeschlagen: ' + error.message);
                 }
             }
         } catch (err) {
-            alert('Ein unerwarteter Fehler ist aufgetreten: ' + err.message);
+            alert('Netzwerk-/Verbindungsfehler: ' + err.message);
+            console.error(err);
         } finally {
-            // Ladezustand zurücksetzen
             authBtn.disabled = false;
-            authBtn.style.opacity = '1';
+            authBtn.textContent = isRegisterMode ? 'Jetzt Registrieren' : 'Einloggen';
         }
     }
 
