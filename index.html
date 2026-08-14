@@ -381,9 +381,9 @@
 
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let decks = [];
-    let isRegisterMode = false;
-    let deferredPrompt = null;
+    var isRegisterMode = false;
+    var decks = [];
+    var deferredPrompt = null;
 
     // --- PWA SERVICE WORKER REGISTRIERUNG ---
     if ('serviceWorker' in navigator) {
