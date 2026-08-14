@@ -4,19 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pokémon TCG Deck Aggregator & Cloud Tracker</title>
-
-    <!-- PWA Konfiguration -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2563eb">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="DeckTracker">
-    <link rel="apple-touch-icon" href="icon-192.png">
-
     <!-- Supabase JS Client per CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DeckTracker">
 
-    <style>
+	<style>
         :root {
             --bg-color: #f4f6f8;
             --card-bg: #ffffff;
@@ -31,13 +27,11 @@
             --border-color: #e5e7eb;
             --table-header-bg: #f8fafc;
             
-            /* Kategorie-Farben */
             --category-bg: #e2e8f0;
             --pokemon-color: #d97706;
             --trainer-color: #2563eb;
             --energy-color: #16a34a;
 
-            /* Spalten-Dimensionen */
             --name-col-width: 250px;
             --deck-col-width: 220px;
         }
@@ -61,7 +55,7 @@
             margin: 0 auto;
         }
 
-        /* Auth Screen */
+        /* Auth Screen Styling */
         .auth-container {
             max-width: 400px;
             margin: 5rem auto;
@@ -104,7 +98,9 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
-        .header-container {
+        
+
+.header-container {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -148,12 +144,6 @@
             font-size: 0.95rem;
         }
 
-        input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-        }
-
         textarea {
             height: 120px;
             font-family: monospace;
@@ -174,11 +164,8 @@
 
         .btn:hover { background-color: var(--primary-hover); }
         .btn-secondary { background-color: var(--secondary); }
-        .btn-secondary:hover { background-color: var(--secondary-hover); }
         .btn-danger { background-color: var(--danger); }
-        .btn-danger:hover { background-color: var(--danger-hover); }
 
-        /* Synchronisierte Scroll-Container */
         .table-wrapper {
             background: var(--card-bg);
             border-radius: 8px;
@@ -308,7 +295,7 @@
 <body>
 
 <div class="container">
-    <!-- AUTH SCREEN -->
+   <!-- AUTH SCREEN -->
     <div id="authScreen" class="auth-container">
         <h2>Pokémon Deck Tracker Cloud</h2>
         <div class="auth-tabs">
@@ -332,8 +319,7 @@
     <div id="appScreen" class="hidden">
         <div class="header-container">
             <h1>Pokémon TCG Cloud Deck Tracker</h1>
-            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                <button id="pwaInstallBtn" class="btn" style="background-color: #16a34a;" onclick="installPWA()">📲 App Installieren</button>
+            <div style="display: flex; align-items: center; gap: 1rem;">
                 <span id="userEmailBadge" class="user-badge"></span>
                 <button class="btn btn-secondary" onclick="logout()">Ausloggen</button>
             </div>
@@ -346,7 +332,7 @@
             </div>
             <div class="form-group">
                 <label for="deckText">Deckliste (aus Pokémon TCG Live)</label>
-                <textarea id="deckText" placeholder="Pokémon: 23&#10;4 Hoothoot SCR 114&#10;4 Noctowl SCR 115&#10;&#10;Trainer: 28&#10;3 Crispin SCR 133&#10;&#10;Energy: 9&#10;2 Water Energy MEE 3"></textarea>
+                <textarea id="deckText" placeholder="Pokémon: 23&#10;4 Hoothoot SCR 114&#10;..."></textarea>
             </div>
             <button class="btn" onclick="addDeck()">Deck in Cloud Speichern</button>
         </div>
@@ -376,58 +362,16 @@
 
 <script>
     // --- SUPABASE CONFIGURATION ---
-    const SUPABASE_URL = 'DEINE_SUPABASE_URL_HIER';
-    const SUPABASE_ANON_KEY = 'DEIN_SUPABASE_ANON_KEY_HIER';
+    const SUPABASE_URL = 'https://uztaqhpijrzvevoczsak.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6dGFxaHBpanJ6dmV2b2N6c2FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1OTYyNTYsImV4cCI6MjEwMjE3MjI1Nn0.demtWO-USuk7XknBM0W11c2VK75_vxvOQzLTF7PnBs4';
 
+    // Eigener Variablenname zur Vermeidung von Namenskonflikten
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let decks = [];
     let isRegisterMode = false;
-    let deferredPrompt = null;
 
-    // --- PWA SERVICE WORKER REGISTRIERUNG ---
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js')
-                .then(reg => console.log('Service Worker aktiv:', reg.scope))
-                .catch(err => console.error('Service Worker Registrierungsfehler:', err));
-        });
-    }
-
-    // --- PWA INSTALLATIONSHANDLING ---
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        console.log('PWA Prompt abgefangen.');
-    });
-
-    async function installPWA() {
-        if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log(`Installationsentscheidung: ${outcome}`);
-            deferredPrompt = null;
-        } else {
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-            if (isIOS) {
-                alert('📱 App auf iOS installieren:\n\n1. Tippe unten in Safari auf das Teilen-Symbol (Viereck mit Pfeil nach oben).\n2. Scrolle nach unten und wähle "Zum Home-Bildschirm".');
-            } else {
-                alert('📱 App installieren:\n\n1. Öffne das Browser-Menü (3 Punkte oben rechts).\n2. Wähle "App installieren" oder "Zum Startbildschirm hinzufügen".\n\n(Hinweis: Falls die Option fehlt, lade die Seite einmal mit Strg+F5 neu).');
-            }
-        }
-    }
-
-    window.addEventListener('appinstalled', () => {
-        const installBtn = document.getElementById('pwaInstallBtn');
-        if (installBtn) installBtn.style.display = 'none';
-    });
-
-    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-        const installBtn = document.getElementById('pwaInstallBtn');
-        if (installBtn) installBtn.style.display = 'none';
-    }
-
-    // --- LIFECYCLE & AUTHENTIFIZIERUNG ---
+    // --- AUTHENTIFIZIERUNG & LIFECYCLE ---
     window.addEventListener('DOMContentLoaded', async () => {
         initScrollSync();
 
@@ -451,12 +395,6 @@
         });
     });
 
-    function handleFormSubmit(event) {
-        event.preventDefault();
-        handleAuth();
-        return false;
-    }
-
     function switchAuthTab(mode) {
         isRegisterMode = (mode === 'register');
         document.getElementById('tabLogin').classList.toggle('active', !isRegisterMode);
@@ -465,6 +403,12 @@
         const authBtn = document.getElementById('authBtn');
         authBtn.textContent = isRegisterMode ? 'Jetzt Registrieren' : 'Einloggen';
         authBtn.style.backgroundColor = isRegisterMode ? 'var(--success)' : 'var(--primary)';
+    }
+
+function handleFormSubmit(event) {
+        event.preventDefault();
+        handleAuth();
+        return false;
     }
 
     async function handleAuth() {
@@ -563,15 +507,16 @@
             return;
         }
 
-        const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-        if (userError || !user) {
-            alert('Sitzung abgelaufen. Bitte neu einloggen.');
-            showAuth();
+        // 1. Aktuelle Session abrufen, um die user_id zu erhalten
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) {
+            alert('Du bist nicht eingeloggt.');
             return;
         }
 
+        // 2. newDeck mit expliziter user_id erstellen
         const newDeck = {
-            user_id: user.id,
+            user_id: session.user.id,
             name: name,
             cards: parsedCards,
             stats: { wins: 0, losses: 0, draws: 0 }
