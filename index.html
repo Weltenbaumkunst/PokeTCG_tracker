@@ -328,6 +328,8 @@
             </div>
         </div>
 
+<button id="pwaInstallBtn" class="btn" style="display: none; background-color: #16a34a;" onclick="installPWA()">📲 App Installieren</button>
+
         <div class="input-card">
             <div class="form-group">
                 <label for="deckName">Deck Code-Name</label>
@@ -772,6 +774,38 @@ function handleFormSubmit(event) {
         div.textContent = text;
         return div.innerHTML;
     }
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Standard-Browser-Dialog verhindern
+    e.preventDefault();
+    deferredPrompt = e;
+    // Eigenen Install-Button anzeigen
+    const installBtn = document.getElementById('pwaInstallBtn');
+    if (installBtn) {
+        installBtn.style.display = 'inline-block';
+    }
+});
+
+async function installPWA() {
+    if (!deferredPrompt) return;
+    
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`User response to install prompt: ${outcome}`);
+    deferredPrompt = null;
+    
+    document.getElementById('pwaInstallBtn').style.display = 'none';
+}
+
+window.addEventListener('appinstalled', () => {
+    console.log('PWA wurde erfolgreich installiert!');
+    const installBtn = document.getElementById('pwaInstallBtn');
+    if (installBtn) {
+        installBtn.style.display = 'none';
+    }
+});
+
 </script>
 
 </body>
