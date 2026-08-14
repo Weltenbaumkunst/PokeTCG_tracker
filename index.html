@@ -7,10 +7,13 @@
     <!-- Supabase JS Client per CDN -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     
-<link rel="manifest" href="manifest.json">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="DeckTracker">
+<!-- PWA Konfiguration -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DeckTracker">
+    <link rel="apple-touch-icon" href="icon-192.png">
 
 	<style>
         :root {
@@ -361,6 +364,20 @@
 </div>
 
 <script>
+
+// Service Worker für PWA registrieren
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Service Worker erfolgreich registriert:', reg.scope))
+                .catch(err => console.error('Service Worker Fehler:', err));
+        });
+    }
+
+
+
+
+
     // --- SUPABASE CONFIGURATION ---
     const SUPABASE_URL = 'https://uztaqhpijrzvevoczsak.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6dGFxaHBpanJ6dmV2b2N6c2FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1OTYyNTYsImV4cCI6MjEwMjE3MjI1Nn0.demtWO-USuk7XknBM0W11c2VK75_vxvOQzLTF7PnBs4';
