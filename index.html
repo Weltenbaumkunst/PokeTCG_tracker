@@ -354,35 +354,21 @@
 
 <script>
     // --- SUPABASE CONFIGURATION ---
-    // Ersetze diese beiden Strings mit deinen Daten aus dem Supabase Dashboard (Settings -> API)
     const SUPABASE_URL = 'https://uztaqhpijrzvevoczsak.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6dGFxaHBpanJ6dmV2b2N6c2FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1OTYyNTYsImV4cCI6MjEwMjE3MjI1Nn0.demtWO-USuk7XknBM0W11c2VK75_vxvOQzLTF7PnBs4';
 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Eigener Variablenname zur Vermeidung von Namenskonflikten
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let decks = [];
     let isRegisterMode = false;
 
-   let supabase;
-    try {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    } catch (err) {
-        console.error('Supabase Client konnte nicht initialisiert werden:', err);
-    }
-
-    let decks = [];
-    let isRegisterMode = false;
-
+    // --- AUTHENTIFIZIERUNG & LIFECYCLE ---
     window.addEventListener('DOMContentLoaded', async () => {
         initScrollSync();
 
-        if (!supabase) {
-            alert('Supabase-Verbindung konnte nicht aufgebaut werden. Bitte überprüfe die URL und den Key.');
-            return;
-        }
-
         try {
-            const { data: { session }, error } = await supabase.auth.getSession();
+            const { data: { session }, error } = await supabaseClient.auth.getSession();
             if (error) throw error;
             
             if (session) {
@@ -392,7 +378,7 @@
             console.error('Session-Check Fehler:', e);
         }
 
-        supabase.auth.onAuthStateChange((event, session) => {
+        supabaseClient.auth.onAuthStateChange((_event, session) => {
             if (session) {
                 showApp(session.user);
             } else {
@@ -431,51 +417,59 @@
 
         try {
             if (isRegisterMode) {
-                const { data, error } = await supabase.auth.signUp({ 
-                    email: email, 
-                    password: password 
-                });
-
+                const { data, error } = await supabaseClient.auth.signUp({ email, password });
                 if (error) {
                     alert('Registrierung fehlgeschlagen: ' + error.message);
                 } else if (data.user && !data.session) {
-                    alert('Registrierung erfolgreich! Bitte bestätige deine E-Mail (oder schalte "Confirm email" in Supabase unter Auth -> Providers -> Email ab).');
+                    alert('Konto erstellt! Bitte prüfe deine Mails oder schalte "Confirm email" im Supabase-Dashboard ab.');
                 } else {
-                    alert('Erfolgreich registriert und eingeloggt!');
+                    alert('Registrierung erfolgreich! Du bist eingeloggt.');
                 }
             } else {
-                const { data, error } = await supabase.auth.signInWithPassword({ 
-                    email: email, 
-                    password: password 
-                });
-
+                const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
                 if (error) {
                     alert('Login fehlgeschlagen: ' + error.message);
                 }
             }
         } catch (err) {
-            alert('Netzwerk-/Verbindungsfehler: ' + err.message);
-            console.error(err);
+            alert('Fehler: ' + err.message);
         } finally {
             authBtn.disabled = false;
             authBtn.textContent = isRegisterMode ? 'Jetzt Registrieren' : 'Einloggen';
         }
     }
 
+    async function logout() {
+        await supabaseClient.auth.signOut();
+    }
+
+    function showApp(user) {
+        document.getElementById('authScreen').classList.add('hidden');
+        document.getElementById('appScreen').classList.remove('hidden');
+        document.getElementById('userEmailBadge').textContent = user.email;
+        loadDecksFromCloud();
+    }
+
+    function showAuth() {
+        document.getElementById('authScreen').classList.remove('hidden');
+        document.getElementById('appScreen').classList.add('hidden');
+        decks = [];
+    }
+
     // --- DATENBANK OPERATIONEN ---
     async function loadDecksFromCloud() {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('decks')
             .select('*')
             .order('created_at', { ascending: false });
 
         if (error) {
             console.error('Fehler beim Laden:', error);
-            alert('Fehler beim Laden der Decks.');
+            alert('Fehler beim Laden der Decks: ' + error.message);
             return;
         }
 
-        decks = data;
+        decks = data || [];
         renderTable();
     }
 
@@ -505,7 +499,7 @@
             stats: { wins: 0, losses: 0, draws: 0 }
         };
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('decks')
             .insert([newDeck])
             .select();
@@ -515,7 +509,10 @@
             return;
         }
 
-        decks.unshift(data[0]);
+        if (data && data.length > 0) {
+            decks.unshift(data[0]);
+        }
+        
         nameInput.value = '';
         textInput.value = '';
         renderTable();
@@ -526,9 +523,9 @@
         if (!deck) return;
 
         const updatedStats = { ...deck.stats };
-        updatedStats[type] = Math.max(0, updatedStats[type] + delta);
+        updatedStats[type] = Math.max(0, (updatedStats[type] || 0) + delta);
 
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('decks')
             .update({ stats: updatedStats })
             .eq('id', deckId);
@@ -545,13 +542,13 @@
     async function removeDeck(deckId) {
         if (!confirm('Deck wirklich aus der Cloud löschen?')) return;
 
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('decks')
             .delete()
             .eq('id', deckId);
 
         if (error) {
-            alert('Löschen fehlgeschlagen.');
+            alert('Löschen fehlgeschlagen: ' + error.message);
             return;
         }
 
@@ -595,6 +592,8 @@
     function initScrollSync() {
         const topContainer = document.getElementById('topScrollContainer');
         const tableContainer = document.getElementById('tableContainer');
+        if (!topContainer || !tableContainer) return;
+
         let isSyncingTop = false, isSyncingTable = false;
 
         topContainer.addEventListener('scroll', () => {
@@ -603,13 +602,17 @@
         });
 
         tableContainer.addEventListener('scroll', () => {
-            if (!isSyncingTable) { isSyncingTop = true; topContainer.scrollLeft = tableContainer.scrollLeft; }
+            if (!isSyncingTable) { isSyncingTable = true; topContainer.scrollLeft = tableContainer.scrollLeft; }
             isSyncingTable = false;
         });
     }
 
     function updateScrollWidths() {
-        document.getElementById('topScrollDummy').style.width = document.getElementById('comparisonTable').scrollWidth + 'px';
+        const table = document.getElementById('comparisonTable');
+        const dummy = document.getElementById('topScrollDummy');
+        if (table && dummy) {
+            dummy.style.width = table.scrollWidth + 'px';
+        }
     }
 
     function renderTable() {
@@ -626,8 +629,9 @@
         }
 
         decks.forEach(deck => {
-            const totalGames = deck.stats.wins + deck.stats.losses + deck.stats.draws;
-            const winrate = totalGames > 0 ? Math.round((deck.stats.wins / totalGames) * 100) : 0;
+            const stats = deck.stats || { wins: 0, losses: 0, draws: 0 };
+            const totalGames = (stats.wins || 0) + (stats.losses || 0) + (stats.draws || 0);
+            const winrate = totalGames > 0 ? Math.round(((stats.wins || 0) / totalGames) * 100) : 0;
             
             let winrateClass = 'winrate-mid';
             if (winrate >= 55) winrateClass = 'winrate-high';
@@ -642,19 +646,19 @@
                         <div class="score-btn-group">
                             <span class="score-label">WIN</span>
                             <button class="btn-mini btn-win" onclick="updateScore('${deck.id}', 'wins', 1)">+</button>
-                            <span class="score-count">${deck.stats.wins}</span>
+                            <span class="score-count">${stats.wins || 0}</span>
                             <button class="btn-mini btn-secondary" onclick="updateScore('${deck.id}', 'wins', -1)">-</button>
                         </div>
                         <div class="score-btn-group">
                             <span class="score-label">LOSS</span>
                             <button class="btn-mini btn-loss" onclick="updateScore('${deck.id}', 'losses', 1)">+</button>
-                            <span class="score-count">${deck.stats.losses}</span>
+                            <span class="score-count">${stats.losses || 0}</span>
                             <button class="btn-mini btn-secondary" onclick="updateScore('${deck.id}', 'losses', -1)">-</button>
                         </div>
                         <div class="score-btn-group">
                             <span class="score-label">DRAW</span>
                             <button class="btn-mini btn-draw" onclick="updateScore('${deck.id}', 'draws', 1)">+</button>
-                            <span class="score-count">${deck.stats.draws}</span>
+                            <span class="score-count">${stats.draws || 0}</span>
                             <button class="btn-mini btn-secondary" onclick="updateScore('${deck.id}', 'draws', -1)">-</button>
                         </div>
                     </div>
@@ -672,7 +676,7 @@
         categories.forEach(category => {
             const uniqueCardsInCat = new Set();
             decks.forEach(deck => {
-                if (deck.cards[category]) {
+                if (deck.cards && deck.cards[category]) {
                     Object.keys(deck.cards[category]).forEach(cardName => uniqueCardsInCat.add(cardName));
                 }
             });
@@ -703,7 +707,7 @@
                     decks.forEach(deck => {
                         const td = document.createElement('td');
                         td.className = 'count-cell deck-col';
-                        const count = (deck.cards[category] && deck.cards[category][cardName]) ? deck.cards[category][cardName] : 0;
+                        const count = (deck.cards && deck.cards[category] && deck.cards[category][cardName]) ? deck.cards[category][cardName] : 0;
 
                         if (count > 0) {
                             td.textContent = count;
