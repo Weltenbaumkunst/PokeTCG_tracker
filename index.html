@@ -501,7 +501,16 @@ function handleFormSubmit(event) {
             return;
         }
 
+        // 1. Aktuelle Session abrufen, um die user_id zu erhalten
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) {
+            alert('Du bist nicht eingeloggt.');
+            return;
+        }
+
+        // 2. newDeck mit expliziter user_id erstellen
         const newDeck = {
+            user_id: session.user.id,
             name: name,
             cards: parsedCards,
             stats: { wins: 0, losses: 0, draws: 0 }
