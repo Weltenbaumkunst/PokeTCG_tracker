@@ -13,9 +13,9 @@
     <meta name="apple-mobile-web-app-title" content="DeckTracker">
     <link rel="apple-touch-icon" href="icon-192.png">
 
-  
-  <!-- Supabase JS v2 CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <!-- Supabase JS v2 CDN (UMD Build für Browser) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
     <style>
         :root {
             --bg-color: #f4f6f8;
@@ -375,58 +375,104 @@
 </div>
 
 <script>
-   // --- KONFIGURATION & GLOBALE VARIABLEN ---
-    var SUPABASE_URL = 'DEINE_SUPABASE_URL_HIER';
-    var SUPABASE_ANON_KEY = 'DEIN_SUPABASE_ANON_KEY_HIER';
+    // --- GLOBALE VARIABLEN ---
+    var SUPABASE_URL = 'https://uztaqhpijrzvevoczsak.supabase.co';
+    var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6dGFxaHBpanJ6dmV2b2N6c2FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1OTYyNTYsImV4cCI6MjEwMjE3MjI1Nn0.demtWO-USuk7XknBM0W11c2VK75_vxvOQzLTF7PnBs4';
     var supabaseClient = null;
 
     var isRegisterMode = false;
     var decks = [];
     var deferredPrompt = null;
 
-    // Robuste Initialisierung für alle CDN-Varianten
-    function initSupabase() {
-        if (supabaseClient) return supabaseClient;
+    // Asynchrones Warten auf CDN-Initialisierung
+    function waitForSupabase() {
+        return new Promise((resolve, reject) => {
+            if (supabaseClient) return resolve(supabaseClient);
 
-        const globalSupabase = window.supabase || window.Supabase;
-        if (globalSupabase && typeof globalSupabase.createClient === 'function') {
-            supabaseClient = globalSupabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        } else if (typeof createClient === 'function') {
-            supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            let attempts = 0;
+            const maxAttempts = 50; // max 5 Sekunden warten
+
+            const interval = setInterval(() => {
+                attempts++;
+                const globalSupabase = window.supabase || window.Supabase;
+
+                if (globalSupabase && typeof globalSupabase.createClient === 'function') {
+                    supabaseClient = globalSupabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    clearInterval(interval);
+                    resolve(supabaseClient);
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(interval);
+                    reject(new Error('Supabase CDN konnte nach 5 Sekunden nicht geladen werden.'));
+                }
+            }, 100);
+        });
+    }
+
+    // --- PWA SERVICE WORKER REGISTRIERUNG ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Service Worker aktiv:', reg.scope))
+                .catch(err => console.error('Service Worker Fehler:', err));
+        });
+    }
+
+    // --- PWA INSTALLATIONSHANDLING ---
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+    });
+
+    async function installPWA() {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            await deferredPrompt.userChoice;
+            deferredPrompt = null;
         } else {
-            console.error('Supabase CDN konnte nicht gefunden werden.');
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            if (isIOS) {
+                alert('📱 App auf iOS installieren:\n\n1. In Safari auf das Teilen-Symbol tippen.\n2. "Zum Home-Bildschirm" wählen.');
+            } else {
+                alert('📱 App installieren:\n\n1. Browser-Menü (3 Punkte) öffnen.\n2. "App installieren" / "Zum Startbildschirm" wählen.');
+            }
         }
-        return supabaseClient;
+    }
+
+    window.addEventListener('appinstalled', () => {
+        const installBtn = document.getElementById('pwaInstallBtn');
+        if (installBtn) installBtn.style.display = 'none';
+    });
+
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+        const installBtn = document.getElementById('pwaInstallBtn');
+        if (installBtn) installBtn.style.display = 'none';
     }
 
     // --- LIFECYCLE & AUTHENTIFIZIERUNG ---
     window.addEventListener('DOMContentLoaded', async () => {
         initScrollSync();
 
-        const client = initSupabase();
-        if (!client) {
-            alert('Supabase-Client konnte nicht gestartet werden. Bitte prüfe, ob ein Werbeblocker das CDN blockiert.');
-            return;
-        }
-
         try {
+            const client = await waitForSupabase();
+
             const { data: { session }, error } = await client.auth.getSession();
             if (error) throw error;
             
             if (session) {
                 showApp(session.user);
             }
-        } catch (e) {
-            console.error('Session-Check Fehler:', e);
-        }
 
-        client.auth.onAuthStateChange((_event, session) => {
-            if (session) {
-                showApp(session.user);
-            } else {
-                showAuth();
-            }
-        });
+            client.auth.onAuthStateChange((_event, session) => {
+                if (session) {
+                    showApp(session.user);
+                } else {
+                    showAuth();
+                }
+            });
+        } catch (e) {
+            console.error('Initialisierungsfehler:', e);
+            alert('Fehler beim Verbinden mit der Datenbank: ' + e.message);
+        }
     });
 
     function handleFormSubmit(event) {
@@ -446,62 +492,11 @@
     }
 
     async function handleAuth() {
-        const client = initSupabase();
-        if (!client) {
-            alert('Verbindung zur Datenbank nicht bereit. Bitte Seite neu laden.');
-            return;
-        }
-
-        const email = document.getElementById('authEmail').value.trim();
-        const password = document.getElementById('authPassword').value.trim();
-        const authBtn = document.getElementById('authBtn');
-
-        if (!email || !password) {
-            alert('Bitte E-Mail und Passwort eingeben.');
-            return;
-        }
-
-        if (password.length < 6) {
-            alert('Das Passwort muss mindestens 6 Zeichen lang sein.');
-            return;
-        }
-
-        authBtn.disabled = true;
-        authBtn.textContent = 'Verarbeite...';
-
+        let client;
         try {
-            if (isRegisterMode) {
-                const { data, error } = await client.auth.signUp({ email, password });
-                if (error) {
-                    alert('Registrierung fehlgeschlagen: ' + error.message);
-                } else if (data.user && !data.session) {
-                    alert('Konto erstellt! Bitte prüfe deine Mails oder deaktiviere "Confirm email" in Supabase.');
-                } else {
-                    alert('Registrierung erfolgreich!');
-                }
-            } else {
-                const { error } = await client.auth.signInWithPassword({ email, password });
-                if (error) {
-                    alert('Login fehlgeschlagen: ' + error.message);
-                }
-            }
+            client = await waitForSupabase();
         } catch (err) {
-            alert('Fehler: ' + err.message);
-        } finally {
-            authBtn.disabled = false;
-            authBtn.textContent = isRegisterMode ? 'Jetzt Registrieren' : 'Einloggen';
-        }
-    }
-
-    async function logout() {
-        const client = initSupabase();
-        if (client) await client.auth.signOut();
-    }
-
-    async function handleAuth() {
-        const client = getSupabase();
-        if (!client) {
-            alert('Supabase ist nicht bereit. Bitte Seite neu laden.');
+            alert('Datenbank-Client nicht bereit: ' + err.message);
             return;
         }
 
@@ -530,7 +525,7 @@
                 } else if (data.user && !data.session) {
                     alert('Konto erstellt! Bitte prüfe deine Mails oder schalte "Confirm email" in Supabase ab.');
                 } else {
-                    alert('Registrierung erfolgreich!');
+                    alert('Registrierung erfolgreich! Du bist eingeloggt.');
                 }
             } else {
                 const { error } = await client.auth.signInWithPassword({ email, password });
@@ -547,54 +542,8 @@
     }
 
     async function logout() {
-        const client = getSupabase();
+        const client = await waitForSupabase();
         if (client) await client.auth.signOut();
-    }
-
-    async function handleAuth() {
-        const email = document.getElementById('authEmail').value.trim();
-        const password = document.getElementById('authPassword').value.trim();
-        const authBtn = document.getElementById('authBtn');
-
-        if (!email || !password) {
-            alert('Bitte E-Mail und Passwort eingeben.');
-            return;
-        }
-
-        if (password.length < 6) {
-            alert('Das Passwort muss mindestens 6 Zeichen lang sein.');
-            return;
-        }
-
-        authBtn.disabled = true;
-        authBtn.textContent = 'Verarbeite...';
-
-        try {
-            if (isRegisterMode) {
-                const { data, error } = await supabaseClient.auth.signUp({ email, password });
-                if (error) {
-                    alert('Registrierung fehlgeschlagen: ' + error.message);
-                } else if (data.user && !data.session) {
-                    alert('Konto erstellt! Bitte prüfe deine Mails oder schalte "Confirm email" im Supabase-Dashboard ab.');
-                } else {
-                    alert('Registrierung erfolgreich! Du bist eingeloggt.');
-                }
-            } else {
-                const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                if (error) {
-                    alert('Login fehlgeschlagen: ' + error.message);
-                }
-            }
-        } catch (err) {
-            alert('Fehler: ' + err.message);
-        } finally {
-            authBtn.disabled = false;
-            authBtn.textContent = isRegisterMode ? 'Jetzt Registrieren' : 'Einloggen';
-        }
-    }
-
-    async function logout() {
-        await supabaseClient.auth.signOut();
     }
 
     function showApp(user) {
@@ -612,7 +561,8 @@
 
     // --- DATENBANK OPERATIONEN ---
     async function loadDecksFromCloud() {
-        const { data, error } = await supabaseClient
+        const client = await waitForSupabase();
+        const { data, error } = await client
             .from('decks')
             .select('*')
             .order('created_at', { ascending: false });
@@ -647,7 +597,8 @@
             return;
         }
 
-        const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+        const client = await waitForSupabase();
+        const { data: { user }, error: userError } = await client.auth.getUser();
         if (userError || !user) {
             alert('Sitzung abgelaufen. Bitte neu einloggen.');
             showAuth();
@@ -661,7 +612,7 @@
             stats: { wins: 0, losses: 0, draws: 0 }
         };
 
-        const { data, error } = await supabaseClient
+        const { data, error } = await client
             .from('decks')
             .insert([newDeck])
             .select();
@@ -698,12 +649,13 @@
         let updatedStats = { wins, losses, draws };
         updatedStats[type] = Math.max(0, updatedStats[type] + delta);
 
-        // Optimistic UI: sofort rendern
+        // Optimistic UI
         decks[deckIndex].stats = updatedStats;
         renderTable();
 
         try {
-            const { error } = await supabaseClient
+            const client = await waitForSupabase();
+            const { error } = await client
                 .from('decks')
                 .update({ stats: updatedStats })
                 .eq('id', deckId);
@@ -721,7 +673,8 @@
     async function removeDeck(deckId) {
         if (!confirm('Deck wirklich aus der Cloud löschen?')) return;
 
-        const { error } = await supabaseClient
+        const client = await waitForSupabase();
+        const { error } = await client
             .from('decks')
             .delete()
             .eq('id', deckId);
