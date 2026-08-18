@@ -766,7 +766,7 @@
             const losses = parseInt(stats.losses, 10) || 0;
             const draws = parseInt(stats.draws, 10) || 0;
             const totalGames = wins + losses + draws;
-            const winrate = totalGames > 0 ? Math.round(((3 * wins + draws ) / totalGames) * 100): 0;
+            const winrate = totalGames > 0 ? Math.round(((3 * wins + draws ) / (3 * totalGames)) * 100): 0;
             
             let winrateClass = 'winrate-mid';
             if (winrate >= 55) winrateClass = 'winrate-high';
