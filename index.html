@@ -597,24 +597,41 @@
     }
 
     async function updateScore(deckId, type, delta) {
-        const deck = decks.find(d => d.id === deckId);
-        if (!deck) return;
+        // Deck finden (loser Vergleich == fängt sowohl String- als auch Number-IDs ab)
+        const deck = decks.find(d => String(d.id) === String(deckId));
+        if (!deck) {
+            console.error('Deck nicht gefunden:', deckId);
+            return;
+        }
 
-        const updatedStats = { ...deck.stats };
-        updatedStats[type] = Math.max(0, (updatedStats[type] || 0) + delta);
+        // Sicherstellen, dass stats ein gültiges Objekt ist
+        const currentStats = deck.stats || { wins: 0, losses: 0, draws: 0 };
+        const currentVal = parseInt(currentStats[type], 10) || 0;
+        const newVal = Math.max(0, currentVal + delta);
 
+        const updatedStats = {
+            wins: parseInt(currentStats.wins, 10) || 0,
+            losses: parseInt(currentStats.losses, 10) || 0,
+            draws: parseInt(currentStats.draws, 10) || 0
+        };
+        updatedStats[type] = newVal;
+
+        // UI sofort lokal aktualisieren
+        deck.stats = updatedStats;
+        renderTable();
+
+        // In Supabase persistieren
         const { error } = await supabaseClient
             .from('decks')
             .update({ stats: updatedStats })
             .eq('id', deckId);
 
         if (error) {
-            console.error('Update Fehler:', error);
-            return;
+            console.error('Fehler beim Aktualisieren der Stats in Supabase:', error);
+            alert('Score konnte nicht in der Cloud gespeichert werden: ' + error.message);
+            // Bei Fehler Daten neu laden, um konsistent zu bleiben
+            loadDecksFromCloud();
         }
-
-        deck.stats = updatedStats;
-        renderTable();
     }
 
     async function removeDeck(deckId) {
