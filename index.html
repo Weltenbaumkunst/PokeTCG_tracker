@@ -381,10 +381,10 @@
     var deferredPrompt = null;
 
     // --- SUPABASE CONFIGURATION ---
-    const SUPABASE_URL = 'DEINE_SUPABASE_URL_HIER';
-    const SUPABASE_ANON_KEY = 'DEIN_SUPABASE_ANON_KEY_HIER';
+    var SUPABASE_URL = 'DEINE_SUPABASE_URL_HIER';
+    var SUPABASE_ANON_KEY = 'DEIN_SUPABASE_ANON_KEY_HIER';
 
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // --- PWA SERVICE WORKER REGISTRIERUNG ---
     if ('serviceWorker' in navigator) {
