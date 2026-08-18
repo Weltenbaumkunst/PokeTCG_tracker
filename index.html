@@ -1,402 +1,402 @@
-!DOCTYPE html
-html lang=de
-head
-    meta charset=UTF-8
-    meta name=viewport content=width=device-width, initial-scale=1.0
-    titlePokémon TCG Deck Aggregator & Cloud Trackertitle
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokémon TCG Deck Aggregator & Cloud Tracker</title>
 
-    !-- PWA Konfiguration --
-    link rel=manifest href=manifest.json
-    meta name=theme-color content=#2563eb
-    meta name=apple-mobile-web-app-capable content=yes
-    meta name=apple-mobile-web-app-status-bar-style content=black-translucent
-    meta name=apple-mobile-web-app-title content=DeckTracker
-    link rel=apple-touch-icon href=icon-192.png
+    <!-- PWA Konfiguration -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DeckTracker">
+    <link rel="apple-touch-icon" href="icon-192.png">
 
-    !-- Supabase JS Client per CDN --
-    script src=httpscdn.jsdelivr.netnpm@supabasesupabase-js@2script
+    <!-- Supabase JS Client per CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    style
-        root {
-            --bg-color #f4f6f8;
-            --card-bg #ffffff;
-            --primary #2563eb;
-            --primary-hover #1d4ed8;
-            --danger #ef4444;
-            --danger-hover #dc2626;
-            --secondary #6b7280;
-            --secondary-hover #4b5563;
-            --success #16a34a;
-            --text-main #1f2937;
-            --border-color #e5e7eb;
-            --table-header-bg #f8fafc;
+    <style>
+        :root {
+            --bg-color: #f4f6f8;
+            --card-bg: #ffffff;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --secondary: #6b7280;
+            --secondary-hover: #4b5563;
+            --success: #16a34a;
+            --text-main: #1f2937;
+            --border-color: #e5e7eb;
+            --table-header-bg: #f8fafc;
             
-             Kategorie-Farben 
-            --category-bg #e2e8f0;
-            --pokemon-color #d97706;
-            --trainer-color #2563eb;
-            --energy-color #16a34a;
+            /* Kategorie-Farben */
+            --category-bg: #e2e8f0;
+            --pokemon-color: #d97706;
+            --trainer-color: #2563eb;
+            --energy-color: #16a34a;
 
-             Spalten-Dimensionen 
-            --name-col-width 250px;
-            --deck-col-width 220px;
+            /* Spalten-Dimensionen */
+            --name-col-width: 250px;
+            --deck-col-width: 220px;
         }
 
-         {
-            box-sizing border-box;
-            margin 0;
-            padding 0;
-            font-family -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
         body {
-            background-color var(--bg-color);
-            color var(--text-main);
-            padding 2rem;
-            line-height 1.5;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 2rem;
+            line-height: 1.5;
         }
 
         .container {
-            max-width 1400px;
-            margin 0 auto;
+            max-width: 1400px;
+            margin: 0 auto;
         }
 
-         Auth Screen 
+        /* Auth Screen */
         .auth-container {
-            max-width 400px;
-            margin 5rem auto;
-            background var(--card-bg);
-            padding 2rem;
-            border-radius 8px;
-            box-shadow 0 4px 6px -1px rgba(0,0,0,0.1);
+            max-width: 400px;
+            margin: 5rem auto;
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         }
 
         .auth-container h2 {
-            margin-bottom 1.5rem;
-            text-align center;
+            margin-bottom: 1.5rem;
+            text-align: center;
         }
 
         .auth-tabs {
-            display flex;
-            gap 0.5rem;
-            margin-bottom 1.5rem;
-            background #e2e8f0;
-            padding 0.25rem;
-            border-radius 6px;
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            background: #e2e8f0;
+            padding: 0.25rem;
+            border-radius: 6px;
         }
 
         .auth-tab {
-            flex 1;
-            padding 0.6rem;
-            text-align center;
-            border-radius 4px;
-            cursor pointer;
-            font-weight 600;
-            font-size 0.9rem;
-            color var(--secondary);
-            transition all 0.2s ease;
-            user-select none;
+            flex: 1;
+            padding: 0.6rem;
+            text-align: center;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--secondary);
+            transition: all 0.2s ease;
+            user-select: none;
         }
 
         .auth-tab.active {
-            background var(--card-bg);
-            color var(--primary);
-            box-shadow 0 1px 3px rgba(0,0,0,0.1);
+            background: var(--card-bg);
+            color: var(--primary);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
         .header-container {
-            display flex;
-            justify-content space-between;
-            align-items center;
-            margin-bottom 1.5rem;
-            flex-wrap wrap;
-            gap 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
 
         .user-badge {
-            font-size 0.85rem;
-            background #e2e8f0;
-            padding 0.3rem 0.6rem;
-            border-radius 4px;
-            font-weight 600;
+            font-size: 0.85rem;
+            background: #e2e8f0;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            font-weight: 600;
         }
 
         .input-card {
-            background var(--card-bg);
-            border-radius 8px;
-            padding 1.5rem;
-            box-shadow 0 1px 3px rgba(0,0,0,0.1);
-            margin-bottom 2rem;
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
         }
 
         .form-group {
-            margin-bottom 1rem;
+            margin-bottom: 1rem;
         }
 
         label {
-            display block;
-            font-weight 600;
-            margin-bottom 0.5rem;
-            font-size 0.9rem;
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
         }
 
-        input[type=text], input[type=email], input[type=password], textarea {
-            width 100%;
-            padding 0.75rem;
-            border 1px solid var(--border-color);
-            border-radius 6px;
-            font-size 0.95rem;
+        input[type="text"], input[type="email"], input[type="password"], textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.95rem;
         }
 
-        input[type=text]focus, input[type=email]focus, input[type=password]focus, textareafocus {
-            outline none;
-            border-color var(--primary);
-            box-shadow 0 0 0 3px rgba(37, 99, 235, 0.1);
+        input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
 
         textarea {
-            height 120px;
-            font-family monospace;
-            resize vertical;
+            height: 120px;
+            font-family: monospace;
+            resize: vertical;
         }
 
         .btn {
-            background-color var(--primary);
-            color white;
-            border none;
-            padding 0.6rem 1.2rem;
-            border-radius 6px;
-            font-weight 600;
-            cursor pointer;
-            transition background-color 0.2s;
-            font-size 0.9rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 0.9rem;
         }
 
-        .btnhover { background-color var(--primary-hover); }
-        .btn-secondary { background-color var(--secondary); }
-        .btn-secondaryhover { background-color var(--secondary-hover); }
-        .btn-danger { background-color var(--danger); }
-        .btn-dangerhover { background-color var(--danger-hover); }
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn-secondary { background-color: var(--secondary); }
+        .btn-secondary:hover { background-color: var(--secondary-hover); }
+        .btn-danger { background-color: var(--danger); }
+        .btn-danger:hover { background-color: var(--danger-hover); }
 
-         Synchronisierte Scroll-Container 
+        /* Synchronisierte Scroll-Container */
         .table-wrapper {
-            background var(--card-bg);
-            border-radius 8px;
-            box-shadow 0 1px 3px rgba(0,0,0,0.1);
-            padding 0.5rem;
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 0.5rem;
         }
 
         .top-scrollbar-container {
-            width 100%;
-            overflow-x auto;
-            overflow-y hidden;
-            height 16px;
-            margin-bottom 0.25rem;
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            height: 16px;
+            margin-bottom: 0.25rem;
         }
 
-        .top-scrollbar-dummy { height 1px; }
+        .top-scrollbar-dummy { height: 1px; }
 
         .table-container {
-            overflow-x auto;
-            width 100%;
+            overflow-x: auto;
+            width: 100%;
         }
 
         table {
-            border-collapse collapse;
-            text-align left;
-            table-layout fixed;
+            border-collapse: collapse;
+            text-align: left;
+            table-layout: fixed;
         }
 
         th, td {
-            padding 0.85rem 1rem;
-            border-bottom 1px solid var(--border-color);
-            border-right 1px solid var(--border-color);
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
         }
 
-        thfirst-child, tdfirst-child {
-            width var(--name-col-width);
-            min-width var(--name-col-width);
+        th:first-child, td:first-child {
+            width: var(--name-col-width);
+            min-width: var(--name-col-width);
         }
 
         .deck-col {
-            width var(--deck-col-width);
-            min-width var(--deck-col-width);
+            width: var(--deck-col-width);
+            min-width: var(--deck-col-width);
         }
 
         th {
-            background-color var(--table-header-bg);
-            font-weight 600;
-            font-size 0.85rem;
-            vertical-align top;
+            background-color: var(--table-header-bg);
+            font-weight: 600;
+            font-size: 0.85rem;
+            vertical-align: top;
         }
 
         .category-row {
-            background-color var(--category-bg) !important;
-            font-weight bold;
-            font-size 0.9rem;
-            text-transform uppercase;
+            background-color: var(--category-bg) !important;
+            font-weight: bold;
+            font-size: 0.9rem;
+            text-transform: uppercase;
         }
 
-        .category-pokemon { color var(--pokemon-color); }
-        .category-trainer { color var(--trainer-color); }
-        .category-energy { color var(--energy-color); }
+        .category-pokemon { color: var(--pokemon-color); }
+        .category-trainer { color: var(--trainer-color); }
+        .category-energy { color: var(--energy-color); }
 
-        .count-cell { text-align center; font-weight 600; }
-        .zero-count { color #9ca3af; font-weight normal; }
+        .count-cell { text-align: center; font-weight: 600; }
+        .zero-count { color: #9ca3af; font-weight: normal; }
 
         .deck-header-title {
-            font-size 0.95rem;
-            font-weight bold;
-            margin-bottom 0.5rem;
-            white-space nowrap;
-            overflow hidden;
-            text-overflow ellipsis;
+            font-size: 0.95rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .score-box {
-            background #ffffff;
-            border 1px solid var(--border-color);
-            border-radius 6px;
-            padding 0.5rem;
-            margin-bottom 0.5rem;
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
         }
 
         .score-controls {
-            display flex;
-            justify-content space-between;
+            display: flex;
+            justify-content: space-between;
         }
 
         .score-btn-group {
-            display flex;
-            flex-direction column;
-            align-items center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
-        .score-label { font-size 0.68rem; color var(--secondary); font-weight bold; }
+        .score-label { font-size: 0.68rem; color: var(--secondary); font-weight: bold; }
 
         .btn-mini {
-            width 22px;
-            height 20px;
-            border-radius 3px;
-            border none;
-            cursor pointer;
-            color white;
-            font-weight bold;
+            width: 22px;
+            height: 20px;
+            border-radius: 3px;
+            border: none;
+            cursor: pointer;
+            color: white;
+            font-weight: bold;
         }
 
-        .btn-win { background-color var(--success); }
-        .btn-loss { background-color var(--danger); }
-        .btn-draw { background-color var(--secondary); }
+        .btn-win { background-color: var(--success); }
+        .btn-loss { background-color: var(--danger); }
+        .btn-draw { background-color: var(--secondary); }
 
         .winrate-display {
-            font-size 0.78rem;
-            font-weight bold;
-            text-align center;
-            margin-top 0.3rem;
-            padding-top 0.2rem;
-            border-top 1px dashed var(--border-color);
+            font-size: 0.78rem;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 0.3rem;
+            padding-top: 0.2rem;
+            border-top: 1px dashed var(--border-color);
         }
 
-        .winrate-high { color var(--success); }
-        .winrate-mid { color #d97706; }
-        .winrate-low { color var(--danger); }
+        .winrate-high { color: var(--success); }
+        .winrate-mid { color: #d97706; }
+        .winrate-low { color: var(--danger); }
 
-        .empty-state { text-align center; padding 3rem; color #6b7280; }
-        .hidden { display none !important; }
-    style
-head
-body
+        .empty-state { text-align: center; padding: 3rem; color: #6b7280; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
 
-div class=container
-    !-- AUTH SCREEN --
-    div id=authScreen class=auth-container
-        h2Pokémon Deck Tracker Cloudh2
-        div class=auth-tabs
-            div id=tabLogin class=auth-tab active onclick=switchAuthTab('login')Logindiv
-            div id=tabRegister class=auth-tab onclick=switchAuthTab('register')Registrierendiv
-        div
-        form onsubmit=return handleFormSubmit(event)
-            div class=form-group
-                label for=authEmailE-Maillabel
-                input type=email id=authEmail placeholder=deine@email.de required
-            div
-            div class=form-group
-                label for=authPasswordPasswortlabel
-                input type=password id=authPassword placeholder=•••••••• required
-            div
-            button type=submit id=authBtn class=btn style=width 100%;Einloggenbutton
-        form
-    div
+<div class="container">
+    <!-- AUTH SCREEN -->
+    <div id="authScreen" class="auth-container">
+        <h2>Pokémon Deck Tracker Cloud</h2>
+        <div class="auth-tabs">
+            <div id="tabLogin" class="auth-tab active" onclick="switchAuthTab('login')">Login</div>
+            <div id="tabRegister" class="auth-tab" onclick="switchAuthTab('register')">Registrieren</div>
+        </div>
+        <form onsubmit="return handleFormSubmit(event)">
+            <div class="form-group">
+                <label for="authEmail">E-Mail</label>
+                <input type="email" id="authEmail" placeholder="deine@email.de" required>
+            </div>
+            <div class="form-group">
+                <label for="authPassword">Passwort</label>
+                <input type="password" id="authPassword" placeholder="••••••••" required>
+            </div>
+            <button type="submit" id="authBtn" class="btn" style="width: 100%;">Einloggen</button>
+        </form>
+    </div>
 
-    !-- MAIN APP SCREEN --
-    div id=appScreen class=hidden
-        div class=header-container
-            h1Pokémon TCG Cloud Deck Trackerh1
-            div style=display flex; align-items center; gap 0.5rem; flex-wrap wrap;
-                button type=button id=pwaInstallBtn class=btn style=background-color #16a34a; onclick=installPWA()📲 App Installierenbutton
-                span id=userEmailBadge class=user-badgespan
-                button type=button class=btn btn-secondary onclick=logout()Ausloggenbutton
-            div
-        div
+    <!-- MAIN APP SCREEN -->
+    <div id="appScreen" class="hidden">
+        <div class="header-container">
+            <h1>Pokémon TCG Cloud Deck Tracker</h1>
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <button type="button" id="pwaInstallBtn" class="btn" style="background-color: #16a34a;" onclick="installPWA()">📲 App Installieren</button>
+                <span id="userEmailBadge" class="user-badge"></span>
+                <button type="button" class="btn btn-secondary" onclick="logout()">Ausloggen</button>
+            </div>
+        </div>
 
-        div class=input-card
-            div class=form-group
-                label for=deckNameDeck Code-Namelabel
-                input type=text id=deckName placeholder=z. B. Gardevoir ex - Regionals
-            div
-            div class=form-group
-                label for=deckTextDeckliste (aus Pokémon TCG Live)label
-                textarea id=deckText placeholder=Pokémon 23&#10;4 Hoothoot SCR 114&#10;4 Noctowl SCR 115&#10;&#10;Trainer 28&#10;3 Crispin SCR 133&#10;&#10;Energy 9&#10;2 Water Energy MEE 3textarea
-            div
-            button type=button class=btn onclick=addDeck()Deck in Cloud Speichernbutton
-        div
+        <div class="input-card">
+            <div class="form-group">
+                <label for="deckName">Deck Code-Name</label>
+                <input type="text" id="deckName" placeholder="z. B. Gardevoir ex - Regionals">
+            </div>
+            <div class="form-group">
+                <label for="deckText">Deckliste (aus Pokémon TCG Live)</label>
+                <textarea id="deckText" placeholder="Pokémon: 23&#10;4 Hoothoot SCR 114&#10;4 Noctowl SCR 115&#10;&#10;Trainer: 28&#10;3 Crispin SCR 133&#10;&#10;Energy: 9&#10;2 Water Energy MEE 3"></textarea>
+            </div>
+            <button type="button" class="btn" onclick="addDeck()">Deck in Cloud Speichern</button>
+        </div>
 
-        div class=table-wrapper
-            div class=top-scrollbar-container id=topScrollContainer
-                div class=top-scrollbar-dummy id=topScrollDummydiv
-            div
+        <div class="table-wrapper">
+            <div class="top-scrollbar-container" id="topScrollContainer">
+                <div class="top-scrollbar-dummy" id="topScrollDummy"></div>
+            </div>
 
-            div class=table-container id=tableContainer
-                table id=comparisonTable
-                    thead
-                        tr id=tableHeader
-                            thKartennameth
-                        tr
-                    thead
-                    tbody id=tableBody
-                        tr
-                            td class=empty-stateLade Daten aus der Cloud...td
-                        tr
-                    tbody
-                table
-            div
-        div
-    div
-div
+            <div class="table-container" id="tableContainer">
+                <table id="comparisonTable">
+                    <thead>
+                        <tr id="tableHeader">
+                            <th>Kartenname</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td class="empty-state">Lade Daten aus der Cloud...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 
-script
-     --- GLOBALE VARIABLEN (GANZ OBEN INITIALISIERT) ---
+<script>
+    // --- GLOBALE VARIABLEN (GANZ OBEN INITIALISIERT) ---
     var isRegisterMode = false;
     var decks = [];
     var deferredPrompt = null;
 
-     --- SUPABASE CONFIGURATION ---
-    const SUPABASE_URL = 'https://uztaqhpijrzvevoczsak.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6dGFxaHBpanJ6dmV2b2N6c2FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1OTYyNTYsImV4cCI6MjEwMjE3MjI1Nn0.demtWO-USuk7XknBM0W11c2VK75_vxvOQzLTF7PnBs4';
+    // --- SUPABASE CONFIGURATION ---
+    const SUPABASE_URL = 'DEINE_SUPABASE_URL_HIER';
+    const SUPABASE_ANON_KEY = 'DEIN_SUPABASE_ANON_KEY_HIER';
 
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-     --- PWA SERVICE WORKER REGISTRIERUNG ---
+    // --- PWA SERVICE WORKER REGISTRIERUNG ---
     if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () = {
-            navigator.serviceWorker.register('.sw.js')
-                .then(reg = console.log('Service Worker aktiv', reg.scope))
-                .catch(err = console.error('Service Worker Registrierungsfehler', err));
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Service Worker aktiv:', reg.scope))
+                .catch(err => console.error('Service Worker Registrierungsfehler:', err));
         });
     }
 
-     --- PWA INSTALLATIONSHANDLING ---
-    window.addEventListener('beforeinstallprompt', (e) = {
+    // --- PWA INSTALLATIONSHANDLING ---
+    window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         deferredPrompt = e;
         console.log('PWA Prompt abgefangen.');
@@ -406,44 +406,44 @@ script
         if (deferredPrompt) {
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
-            console.log(`Installationsentscheidung ${outcome}`);
+            console.log(`Installationsentscheidung: ${outcome}`);
             deferredPrompt = null;
         } else {
-            const isIOS = iPadiPhoneiPod.test(navigator.userAgent) && !window.MSStream;
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
             if (isIOS) {
-                alert('📱 App auf iOS installierennn1. Tippe unten in Safari auf das Teilen-Symbol (Viereck mit Pfeil nach oben).n2. Scrolle nach unten und wähle Zum Home-Bildschirm.');
+                alert('📱 App auf iOS installieren:\n\n1. Tippe unten in Safari auf das Teilen-Symbol (Viereck mit Pfeil nach oben).\n2. Scrolle nach unten und wähle "Zum Home-Bildschirm".');
             } else {
-                alert('📱 App installierennn1. Öffne das Browser-Menü (3 Punkte oben rechts).n2. Wähle App installieren oder Zum Startbildschirm hinzufügen.nn(Hinweis Falls die Option fehlt, lade die Seite einmal mit Strg+F5 neu).');
+                alert('📱 App installieren:\n\n1. Öffne das Browser-Menü (3 Punkte oben rechts).\n2. Wähle "App installieren" oder "Zum Startbildschirm hinzufügen".\n\n(Hinweis: Falls die Option fehlt, lade die Seite einmal mit Strg+F5 neu).');
             }
         }
     }
 
-    window.addEventListener('appinstalled', () = {
+    window.addEventListener('appinstalled', () => {
         const installBtn = document.getElementById('pwaInstallBtn');
         if (installBtn) installBtn.style.display = 'none';
     });
 
-    if (window.matchMedia('(display-mode standalone)').matches  window.navigator.standalone === true) {
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
         const installBtn = document.getElementById('pwaInstallBtn');
         if (installBtn) installBtn.style.display = 'none';
     }
 
-     --- LIFECYCLE & AUTHENTIFIZIERUNG ---
-    window.addEventListener('DOMContentLoaded', async () = {
+    // --- LIFECYCLE & AUTHENTIFIZIERUNG ---
+    window.addEventListener('DOMContentLoaded', async () => {
         initScrollSync();
 
         try {
-            const { data { session }, error } = await supabaseClient.auth.getSession();
+            const { data: { session }, error } = await supabaseClient.auth.getSession();
             if (error) throw error;
             
             if (session) {
                 showApp(session.user);
             }
         } catch (e) {
-            console.error('Session-Check Fehler', e);
+            console.error('Session-Check Fehler:', e);
         }
 
-        supabaseClient.auth.onAuthStateChange((_event, session) = {
+        supabaseClient.auth.onAuthStateChange((_event, session) => {
             if (session) {
                 showApp(session.user);
             } else {
@@ -464,8 +464,8 @@ script
         document.getElementById('tabRegister').classList.toggle('active', isRegisterMode);
         
         const authBtn = document.getElementById('authBtn');
-        authBtn.textContent = isRegisterMode  'Jetzt Registrieren'  'Einloggen';
-        authBtn.style.backgroundColor = isRegisterMode  'var(--success)'  'var(--primary)';
+        authBtn.textContent = isRegisterMode ? 'Jetzt Registrieren' : 'Einloggen';
+        authBtn.style.backgroundColor = isRegisterMode ? 'var(--success)' : 'var(--primary)';
     }
 
     async function handleAuth() {
@@ -473,12 +473,12 @@ script
         const password = document.getElementById('authPassword').value.trim();
         const authBtn = document.getElementById('authBtn');
 
-        if (!email  !password) {
+        if (!email || !password) {
             alert('Bitte E-Mail und Passwort eingeben.');
             return;
         }
 
-        if (password.length  6) {
+        if (password.length < 6) {
             alert('Das Passwort muss mindestens 6 Zeichen lang sein.');
             return;
         }
@@ -490,23 +490,23 @@ script
             if (isRegisterMode) {
                 const { data, error } = await supabaseClient.auth.signUp({ email, password });
                 if (error) {
-                    alert('Registrierung fehlgeschlagen ' + error.message);
+                    alert('Registrierung fehlgeschlagen: ' + error.message);
                 } else if (data.user && !data.session) {
-                    alert('Konto erstellt! Bitte prüfe deine Mails oder schalte Confirm email im Supabase-Dashboard ab.');
+                    alert('Konto erstellt! Bitte prüfe deine Mails oder schalte "Confirm email" im Supabase-Dashboard ab.');
                 } else {
                     alert('Registrierung erfolgreich! Du bist eingeloggt.');
                 }
             } else {
                 const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
                 if (error) {
-                    alert('Login fehlgeschlagen ' + error.message);
+                    alert('Login fehlgeschlagen: ' + error.message);
                 }
             }
         } catch (err) {
-            alert('Fehler ' + err.message);
+            alert('Fehler: ' + err.message);
         } finally {
             authBtn.disabled = false;
-            authBtn.textContent = isRegisterMode  'Jetzt Registrieren'  'Einloggen';
+            authBtn.textContent = isRegisterMode ? 'Jetzt Registrieren' : 'Einloggen';
         }
     }
 
@@ -527,20 +527,20 @@ script
         decks = [];
     }
 
-     --- DATENBANK OPERATIONEN ---
+    // --- DATENBANK OPERATIONEN ---
     async function loadDecksFromCloud() {
         const { data, error } = await supabaseClient
             .from('decks')
-            .select('')
-            .order('created_at', { ascending false });
+            .select('*')
+            .order('created_at', { ascending: false });
 
         if (error) {
-            console.error('Fehler beim Laden', error);
-            alert('Fehler beim Laden der Decks ' + error.message);
+            console.error('Fehler beim Laden:', error);
+            alert('Fehler beim Laden der Decks: ' + error.message);
             return;
         }
 
-        decks = data  [];
+        decks = data || [];
         renderTable();
     }
 
@@ -548,7 +548,7 @@ script
         const nameInput = document.getElementById('deckName');
         const textInput = document.getElementById('deckText');
 
-        const name = nameInput.value.trim()  `Deck ${decks.length + 1}`;
+        const name = nameInput.value.trim() || `Deck ${decks.length + 1}`;
         const rawText = textInput.value.trim();
 
         if (!rawText) {
@@ -557,25 +557,25 @@ script
         }
 
         const parsedCards = parseDeckList(rawText);
-        const hasCards = Object.values(parsedCards).some(cat = Object.keys(cat).length  0);
+        const hasCards = Object.values(parsedCards).some(cat => Object.keys(cat).length > 0);
 
         if (!hasCards) {
             alert('Keine gültigen Kartenzeilen gefunden.');
             return;
         }
 
-        const { data { user }, error userError } = await supabaseClient.auth.getUser();
-        if (userError  !user) {
+        const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+        if (userError || !user) {
             alert('Sitzung abgelaufen. Bitte neu einloggen.');
             showAuth();
             return;
         }
 
         const newDeck = {
-            user_id user.id,
-            name name,
-            cards parsedCards,
-            stats { wins 0, losses 0, draws 0 }
+            user_id: user.id,
+            name: name,
+            cards: parsedCards,
+            stats: { wins: 0, losses: 0, draws: 0 }
         };
 
         const { data, error } = await supabaseClient
@@ -584,11 +584,11 @@ script
             .select();
 
         if (error) {
-            alert('Fehler beim Speichern ' + error.message);
+            alert('Fehler beim Speichern: ' + error.message);
             return;
         }
 
-        if (data && data.length  0) {
+        if (data && data.length > 0) {
             decks.unshift(data[0]);
         }
         
@@ -597,46 +597,46 @@ script
         renderTable();
     }
 
-     --- SCORE TRACKING (GLOBAL GEBUNDEN) ---
+    // --- SCORE TRACKING (GLOBAL GEBUNDEN) ---
     window.updateScore = async function(deckId, type, delta) {
-        const deckIndex = decks.findIndex(d = String(d.id) === String(deckId));
+        const deckIndex = decks.findIndex(d => String(d.id) === String(deckId));
         if (deckIndex === -1) {
-            console.error('Deck mit ID nicht gefunden', deckId);
+            console.error('Deck mit ID nicht gefunden:', deckId);
             return;
         }
 
         const deck = decks[deckIndex];
-        const currentStats = deck.stats  { wins 0, losses 0, draws 0 };
+        const currentStats = deck.stats || { wins: 0, losses: 0, draws: 0 };
         
-        const wins = parseInt(currentStats.wins, 10)  0;
-        const losses = parseInt(currentStats.losses, 10)  0;
-        const draws = parseInt(currentStats.draws, 10)  0;
+        const wins = parseInt(currentStats.wins, 10) || 0;
+        const losses = parseInt(currentStats.losses, 10) || 0;
+        const draws = parseInt(currentStats.draws, 10) || 0;
 
         let updatedStats = { wins, losses, draws };
         updatedStats[type] = Math.max(0, updatedStats[type] + delta);
 
-         Optimistic UI sofort rendern
+        // Optimistic UI: sofort rendern
         decks[deckIndex].stats = updatedStats;
         renderTable();
 
         try {
             const { error } = await supabaseClient
                 .from('decks')
-                .update({ stats updatedStats })
+                .update({ stats: updatedStats })
                 .eq('id', deckId);
 
             if (error) {
-                console.error('Supabase Update Error', error);
-                alert('Speichern fehlgeschlagen ' + error.message);
+                console.error('Supabase Update Error:', error);
+                alert('Speichern fehlgeschlagen: ' + error.message);
                 loadDecksFromCloud();
             }
         } catch (err) {
-            console.error('Netzwerkfehler', err);
+            console.error('Netzwerkfehler:', err);
         }
     };
 
     async function removeDeck(deckId) {
-        if (!confirm('Deck wirklich aus der Cloud löschen')) return;
+        if (!confirm('Deck wirklich aus der Cloud löschen?')) return;
 
         const { error } = await supabaseClient
             .from('decks')
@@ -644,24 +644,24 @@ script
             .eq('id', deckId);
 
         if (error) {
-            alert('Löschen fehlgeschlagen ' + error.message);
+            alert('Löschen fehlgeschlagen: ' + error.message);
             return;
         }
 
-        decks = decks.filter(d = String(d.id) !== String(deckId));
+        decks = decks.filter(d => String(d.id) !== String(deckId));
         renderTable();
     }
 
-     --- HELPER & PARSER ---
+    // --- HELPER & PARSER ---
     function parseDeckList(text) {
-        const cardData = { 'Pokémon' {}, 'Trainer' {}, 'Energy' {}, 'Sonstige' {} };
+        const cardData = { 'Pokémon': {}, 'Trainer': {}, 'Energy': {}, 'Sonstige': {} };
         let currentCategory = 'Sonstige';
-        const lines = text.split('n');
+        const lines = text.split('\n');
 
-        const categoryRegex = ^(PokémonPokemonTrainerEnergyEnergie)i;
-        const cardRegex = ^s(d+)s+(.+)s+([A-Z0-9]{3,4})s+(d+)s$i;
+        const categoryRegex = /^(Pokémon|Pokemon|Trainer|Energy|Energie):?/i;
+        const cardRegex = /^\s*(\d+)\s+(.+?)\s+([A-Z0-9]{3,4})\s+(\d+)\s*$/i;
 
-        lines.forEach(line = {
+        lines.forEach(line => {
             const trimmedLine = line.trim();
             if (!trimmedLine) return;
 
@@ -678,7 +678,7 @@ script
             if (match) {
                 const count = parseInt(match[1], 10);
                 const name = match[2].trim();
-                cardData[currentCategory][name] = (cardData[currentCategory][name]  0) + count;
+                cardData[currentCategory][name] = (cardData[currentCategory][name] || 0) + count;
             }
         });
 
@@ -688,16 +688,16 @@ script
     function initScrollSync() {
         const topContainer = document.getElementById('topScrollContainer');
         const tableContainer = document.getElementById('tableContainer');
-        if (!topContainer  !tableContainer) return;
+        if (!topContainer || !tableContainer) return;
 
         let isSyncingTop = false, isSyncingTable = false;
 
-        topContainer.addEventListener('scroll', () = {
+        topContainer.addEventListener('scroll', () => {
             if (!isSyncingTop) { isSyncingTable = true; tableContainer.scrollLeft = topContainer.scrollLeft; }
             isSyncingTop = false;
         });
 
-        tableContainer.addEventListener('scroll', () = {
+        tableContainer.addEventListener('scroll', () => {
             if (!isSyncingTable) { isSyncingTable = true; topContainer.scrollLeft = tableContainer.scrollLeft; }
             isSyncingTable = false;
         });
@@ -715,73 +715,73 @@ script
         const headerRow = document.getElementById('tableHeader');
         const tableBody = document.getElementById('tableBody');
 
-        headerRow.innerHTML = 'thKartennameth';
+        headerRow.innerHTML = '<th>Kartenname</th>';
         tableBody.innerHTML = '';
 
         if (decks.length === 0) {
-            tableBody.innerHTML = 'trtd class=empty-stateNoch keine Decks in der Cloud gespeichert.tdtr';
+            tableBody.innerHTML = '<tr><td class="empty-state">Noch keine Decks in der Cloud gespeichert.</td></tr>';
             updateScrollWidths();
             return;
         }
 
-        decks.forEach(deck = {
-            const stats = deck.stats  { wins 0, losses 0, draws 0 };
-            const wins = parseInt(stats.wins, 10)  0;
-            const losses = parseInt(stats.losses, 10)  0;
-            const draws = parseInt(stats.draws, 10)  0;
+        decks.forEach(deck => {
+            const stats = deck.stats || { wins: 0, losses: 0, draws: 0 };
+            const wins = parseInt(stats.wins, 10) || 0;
+            const losses = parseInt(stats.losses, 10) || 0;
+            const draws = parseInt(stats.draws, 10) || 0;
             const totalGames = wins + losses + draws;
-            const winrate = totalGames  0  Math.round((wins  totalGames)  100)  0;
+            const winrate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
             
             let winrateClass = 'winrate-mid';
-            if (winrate = 55) winrateClass = 'winrate-high';
-            else if (winrate  45 && totalGames  0) winrateClass = 'winrate-low';
+            if (winrate >= 55) winrateClass = 'winrate-high';
+            else if (winrate < 45 && totalGames > 0) winrateClass = 'winrate-low';
 
             const th = document.createElement('th');
             th.className = 'count-cell deck-col';
             
             th.innerHTML = `
-                div class=deck-header-title title=${escapeHtml(deck.name)}${escapeHtml(deck.name)}div
-                div class=score-box
-                    div class=score-controls
-                        div class=score-btn-group
-                            span class=score-labelWINspan
-                            button type=button class=btn-mini btn-win onclick=window.updateScore('${deck.id}', 'wins', 1)+button
-                            span class=score-count${wins}span
-                            button type=button class=btn-mini btn-secondary onclick=window.updateScore('${deck.id}', 'wins', -1)-button
-                        div
-                        div class=score-btn-group
-                            span class=score-labelLOSSspan
-                            button type=button class=btn-mini btn-loss onclick=window.updateScore('${deck.id}', 'losses', 1)+button
-                            span class=score-count${losses}span
-                            button type=button class=btn-mini btn-secondary onclick=window.updateScore('${deck.id}', 'losses', -1)-button
-                        div
-                        div class=score-btn-group
-                            span class=score-labelDRAWspan
-                            button type=button class=btn-mini btn-draw onclick=window.updateScore('${deck.id}', 'draws', 1)+button
-                            span class=score-count${draws}span
-                            button type=button class=btn-mini btn-secondary onclick=window.updateScore('${deck.id}', 'draws', -1)-button
-                        div
-                    div
-                    div class=winrate-display ${winrateClass}
+                <div class="deck-header-title" title="${escapeHtml(deck.name)}">${escapeHtml(deck.name)}</div>
+                <div class="score-box">
+                    <div class="score-controls">
+                        <div class="score-btn-group">
+                            <span class="score-label">WIN</span>
+                            <button type="button" class="btn-mini btn-win" onclick="window.updateScore('${deck.id}', 'wins', 1)">+</button>
+                            <span class="score-count">${wins}</span>
+                            <button type="button" class="btn-mini btn-secondary" onclick="window.updateScore('${deck.id}', 'wins', -1)">-</button>
+                        </div>
+                        <div class="score-btn-group">
+                            <span class="score-label">LOSS</span>
+                            <button type="button" class="btn-mini btn-loss" onclick="window.updateScore('${deck.id}', 'losses', 1)">+</button>
+                            <span class="score-count">${losses}</span>
+                            <button type="button" class="btn-mini btn-secondary" onclick="window.updateScore('${deck.id}', 'losses', -1)">-</button>
+                        </div>
+                        <div class="score-btn-group">
+                            <span class="score-label">DRAW</span>
+                            <button type="button" class="btn-mini btn-draw" onclick="window.updateScore('${deck.id}', 'draws', 1)">+</button>
+                            <span class="score-count">${draws}</span>
+                            <button type="button" class="btn-mini btn-secondary" onclick="window.updateScore('${deck.id}', 'draws', -1)">-</button>
+                        </div>
+                    </div>
+                    <div class="winrate-display ${winrateClass}">
                         ${winrate}% (${totalGames} Sp.)
-                    div
-                div
-                button type=button class=btn btn-danger onclick=removeDeck('${deck.id}') title=Deck entfernen style=padding 0.2rem 0.5rem; font-size 0.75rem; width 100%;Löschenbutton
+                    </div>
+                </div>
+                <button type="button" class="btn btn-danger" onclick="removeDeck('${deck.id}')" title="Deck entfernen" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; width: 100%;">Löschen</button>
             `;
             headerRow.appendChild(th);
         });
 
         const categories = ['Pokémon', 'Trainer', 'Energy', 'Sonstige'];
 
-        categories.forEach(category = {
+        categories.forEach(category => {
             const uniqueCardsInCat = new Set();
-            decks.forEach(deck = {
+            decks.forEach(deck => {
                 if (deck.cards && deck.cards[category]) {
-                    Object.keys(deck.cards[category]).forEach(cardName = uniqueCardsInCat.add(cardName));
+                    Object.keys(deck.cards[category]).forEach(cardName => uniqueCardsInCat.add(cardName));
                 }
             });
 
-            if (uniqueCardsInCat.size  0) {
+            if (uniqueCardsInCat.size > 0) {
                 const catRow = document.createElement('tr');
                 catRow.className = 'category-row';
                 
@@ -798,18 +798,18 @@ script
                 tableBody.appendChild(catRow);
 
                 const sortedCards = Array.from(uniqueCardsInCat).sort();
-                sortedCards.forEach(cardName = {
+                sortedCards.forEach(cardName => {
                     const tr = document.createElement('tr');
                     const nameTd = document.createElement('td');
                     nameTd.textContent = cardName;
                     tr.appendChild(nameTd);
 
-                    decks.forEach(deck = {
+                    decks.forEach(deck => {
                         const td = document.createElement('td');
                         td.className = 'count-cell deck-col';
-                        const count = (deck.cards && deck.cards[category] && deck.cards[category][cardName])  deck.cards[category][cardName]  0;
+                        const count = (deck.cards && deck.cards[category] && deck.cards[category][cardName]) ? deck.cards[category][cardName] : 0;
 
-                        if (count  0) {
+                        if (count > 0) {
                             td.textContent = count;
                         } else {
                             td.textContent = '-';
@@ -832,7 +832,7 @@ script
         div.textContent = text;
         return div.innerHTML;
     }
-script
+</script>
 
-body
-html
+</body>
+</html>
