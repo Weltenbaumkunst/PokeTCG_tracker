@@ -596,43 +596,44 @@
         renderTable();
     }
 
-    async function updateScore(deckId, type, delta) {
-        // Deck finden (loser Vergleich == fängt sowohl String- als auch Number-IDs ab)
-        const deck = decks.find(d => String(d.id) === String(deckId));
-        if (!deck) {
-            console.error('Deck nicht gefunden:', deckId);
+    window.updateScore = async function(deckId, type, delta) {
+        // Deck im Array finden
+        const deckIndex = decks.findIndex(d => String(d.id) === String(deckId));
+        if (deckIndex === -1) {
+            console.error('Deck mit ID nicht gefunden:', deckId);
             return;
         }
 
-        // Sicherstellen, dass stats ein gültiges Objekt ist
+        const deck = decks[deckIndex];
         const currentStats = deck.stats || { wins: 0, losses: 0, draws: 0 };
-        const currentVal = parseInt(currentStats[type], 10) || 0;
-        const newVal = Math.max(0, currentVal + delta);
+        
+        const wins = parseInt(currentStats.wins, 10) || 0;
+        const losses = parseInt(currentStats.losses, 10) || 0;
+        const draws = parseInt(currentStats.draws, 10) || 0;
 
-        const updatedStats = {
-            wins: parseInt(currentStats.wins, 10) || 0,
-            losses: parseInt(currentStats.losses, 10) || 0,
-            draws: parseInt(currentStats.draws, 10) || 0
-        };
-        updatedStats[type] = newVal;
+        let updatedStats = { wins, losses, draws };
+        updatedStats[type] = Math.max(0, updatedStats[type] + delta);
 
-        // UI sofort lokal aktualisieren
-        deck.stats = updatedStats;
+        // 1. Lokalen Status sofort aktualisieren & Tabelle neu rendern
+        decks[deckIndex].stats = updatedStats;
         renderTable();
 
-        // In Supabase persistieren
-        const { error } = await supabaseClient
-            .from('decks')
-            .update({ stats: updatedStats })
-            .eq('id', deckId);
+        // 2. In Supabase speichern
+        try {
+            const { error } = await supabaseClient
+                .from('decks')
+                .update({ stats: updatedStats })
+                .eq('id', deckId);
 
-        if (error) {
-            console.error('Fehler beim Aktualisieren der Stats in Supabase:', error);
-            alert('Score konnte nicht in der Cloud gespeichert werden: ' + error.message);
-            // Bei Fehler Daten neu laden, um konsistent zu bleiben
-            loadDecksFromCloud();
+            if (error) {
+                console.error('Supabase Update Error:', error);
+                alert('Speichern fehlgeschlagen: ' + error.message);
+                loadDecksFromCloud();
+            }
+        } catch (err) {
+            console.error('Netzwerkfehler:', err);
         }
-    }
+    };
 
     async function removeDeck(deckId) {
         if (!confirm('Deck wirklich aus der Cloud löschen?')) return;
@@ -725,8 +726,11 @@
 
         decks.forEach(deck => {
             const stats = deck.stats || { wins: 0, losses: 0, draws: 0 };
-            const totalGames = (stats.wins || 0) + (stats.losses || 0) + (stats.draws || 0);
-            const winrate = totalGames > 0 ? Math.round(((stats.wins || 0) / totalGames) * 100) : 0;
+            const wins = parseInt(stats.wins, 10) || 0;
+            const losses = parseInt(stats.losses, 10) || 0;
+            const draws = parseInt(stats.draws, 10) || 0;
+            const totalGames = wins + losses + draws;
+            const winrate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
             
             let winrateClass = 'winrate-mid';
             if (winrate >= 55) winrateClass = 'winrate-high';
@@ -734,34 +738,36 @@
 
             const th = document.createElement('th');
             th.className = 'count-cell deck-col';
+            
+            // Wichtig: type="button" verhindert unerwünschtes Form-Submit Verhalten
             th.innerHTML = `
                 <div class="deck-header-title" title="${escapeHtml(deck.name)}">${escapeHtml(deck.name)}</div>
                 <div class="score-box">
                     <div class="score-controls">
                         <div class="score-btn-group">
                             <span class="score-label">WIN</span>
-                            <button class="btn-mini btn-win" onclick="updateScore('${deck.id}', 'wins', 1)">+</button>
-                            <span class="score-count">${stats.wins || 0}</span>
-                            <button class="btn-mini btn-secondary" onclick="updateScore('${deck.id}', 'wins', -1)">-</button>
+                            <button type="button" class="btn-mini btn-win" onclick="window.updateScore('${deck.id}', 'wins', 1)">+</button>
+                            <span class="score-count">${wins}</span>
+                            <button type="button" class="btn-mini btn-secondary" onclick="window.updateScore('${deck.id}', 'wins', -1)">-</button>
                         </div>
                         <div class="score-btn-group">
                             <span class="score-label">LOSS</span>
-                            <button class="btn-mini btn-loss" onclick="updateScore('${deck.id}', 'losses', 1)">+</button>
-                            <span class="score-count">${stats.losses || 0}</span>
-                            <button class="btn-mini btn-secondary" onclick="updateScore('${deck.id}', 'losses', -1)">-</button>
+                            <button type="button" class="btn-mini btn-loss" onclick="window.updateScore('${deck.id}', 'losses', 1)">+</button>
+                            <span class="score-count">${losses}</span>
+                            <button type="button" class="btn-mini btn-secondary" onclick="window.updateScore('${deck.id}', 'losses', -1)">-</button>
                         </div>
                         <div class="score-btn-group">
                             <span class="score-label">DRAW</span>
-                            <button class="btn-mini btn-draw" onclick="updateScore('${deck.id}', 'draws', 1)">+</button>
-                            <span class="score-count">${stats.draws || 0}</span>
-                            <button class="btn-mini btn-secondary" onclick="updateScore('${deck.id}', 'draws', -1)">-</button>
+                            <button type="button" class="btn-mini btn-draw" onclick="window.updateScore('${deck.id}', 'draws', 1)">+</button>
+                            <span class="score-count">${draws}</span>
+                            <button type="button" class="btn-mini btn-secondary" onclick="window.updateScore('${deck.id}', 'draws', -1)">-</button>
                         </div>
                     </div>
                     <div class="winrate-display ${winrateClass}">
                         ${winrate}% (${totalGames} Sp.)
                     </div>
                 </div>
-                <button class="btn btn-danger" onclick="removeDeck('${deck.id}')" title="Deck entfernen" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; width: 100%;">Löschen</button>
+                <button type="button" class="btn btn-danger" onclick="removeDeck('${deck.id}')" title="Deck entfernen" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; width: 100%;">Löschen</button>
             `;
             headerRow.appendChild(th);
         });
@@ -820,12 +826,6 @@
         });
 
         updateScrollWidths();
-    }
-
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
     }
 </script>
 
