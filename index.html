@@ -416,24 +416,68 @@
                 alert('📱 App installieren:\n\n1. Öffne das Browser-Menü (3 Punkte oben rechts).\n2. Wähle "App installieren" oder "Zum Startbildschirm hinzufügen".\n\n(Hinweis: Falls die Option fehlt, lade die Seite einmal mit Strg+F5 neu).');
             }
         }
+    }var SUPABASE_URL = 'DEINE_SUPABASE_URL_HIER';
+    var SUPABASE_ANON_KEY = 'DEIN_SUPABASE_ANON_KEY_HIER';
+    var supabaseClient = null;
+
+    var isRegisterMode = false;
+    var decks = [];
+    var deferredPrompt = null;
+
+    // Helper: Garantiert, dass der Supabase-Client initialisiert ist
+    function getSupabase() {
+        if (!supabaseClient) {
+            if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            } else {
+                console.error('Supabase CDN-Bibliothek noch nicht geladen!');
+            }
+        }
+        return supabaseClient;
     }
 
-    window.addEventListener('appinstalled', () => {
-        const installBtn = document.getElementById('pwaInstallBtn');
-        if (installBtn) installBtn.style.display = 'none';
+    // --- PWA SERVICE WORKER REGISTRIERUNG ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Service Worker aktiv:', reg.scope))
+                .catch(err => console.error('Service Worker Fehler:', err));
+        });
+    }
+
+    // --- PWA INSTALLATIONSHANDLING ---
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
     });
 
-    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-        const installBtn = document.getElementById('pwaInstallBtn');
-        if (installBtn) installBtn.style.display = 'none';
+    async function installPWA() {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            await deferredPrompt.userChoice;
+            deferredPrompt = null;
+        } else {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            if (isIOS) {
+                alert('📱 App auf iOS installieren:\n\n1. In Safari auf "Teilen" tippen.\n2. "Zum Home-Bildschirm" wählen.');
+            } else {
+                alert('📱 App installieren:\n\n1. Browser-Menü (3 Punkte) öffnen.\n2. "App installieren" / "Zum Startbildschirm" wählen.');
+            }
+        }
     }
 
     // --- LIFECYCLE & AUTHENTIFIZIERUNG ---
     window.addEventListener('DOMContentLoaded', async () => {
         initScrollSync();
 
+        const client = getSupabase();
+        if (!client) {
+            alert('Supabase-Bibliothek konnte nicht initialisiert werden. Bitte Internetverbindung / CDN prüfen.');
+            return;
+        }
+
         try {
-            const { data: { session }, error } = await supabaseClient.auth.getSession();
+            const { data: { session }, error } = await client.auth.getSession();
             if (error) throw error;
             
             if (session) {
@@ -443,7 +487,7 @@
             console.error('Session-Check Fehler:', e);
         }
 
-        supabaseClient.auth.onAuthStateChange((_event, session) => {
+        client.auth.onAuthStateChange((_event, session) => {
             if (session) {
                 showApp(session.user);
             } else {
@@ -466,6 +510,59 @@
         const authBtn = document.getElementById('authBtn');
         authBtn.textContent = isRegisterMode ? 'Jetzt Registrieren' : 'Einloggen';
         authBtn.style.backgroundColor = isRegisterMode ? 'var(--success)' : 'var(--primary)';
+    }
+
+    async function handleAuth() {
+        const client = getSupabase();
+        if (!client) {
+            alert('Supabase ist nicht bereit. Bitte Seite neu laden.');
+            return;
+        }
+
+        const email = document.getElementById('authEmail').value.trim();
+        const password = document.getElementById('authPassword').value.trim();
+        const authBtn = document.getElementById('authBtn');
+
+        if (!email || !password) {
+            alert('Bitte E-Mail und Passwort eingeben.');
+            return;
+        }
+
+        if (password.length < 6) {
+            alert('Das Passwort muss mindestens 6 Zeichen lang sein.');
+            return;
+        }
+
+        authBtn.disabled = true;
+        authBtn.textContent = 'Verarbeite...';
+
+        try {
+            if (isRegisterMode) {
+                const { data, error } = await client.auth.signUp({ email, password });
+                if (error) {
+                    alert('Registrierung fehlgeschlagen: ' + error.message);
+                } else if (data.user && !data.session) {
+                    alert('Konto erstellt! Bitte prüfe deine Mails oder schalte "Confirm email" in Supabase ab.');
+                } else {
+                    alert('Registrierung erfolgreich!');
+                }
+            } else {
+                const { error } = await client.auth.signInWithPassword({ email, password });
+                if (error) {
+                    alert('Login fehlgeschlagen: ' + error.message);
+                }
+            }
+        } catch (err) {
+            alert('Fehler: ' + err.message);
+        } finally {
+            authBtn.disabled = false;
+            authBtn.textContent = isRegisterMode ? 'Jetzt Registrieren' : 'Einloggen';
+        }
+    }
+
+    async function logout() {
+        const client = getSupabase();
+        if (client) await client.auth.signOut();
     }
 
     async function handleAuth() {
